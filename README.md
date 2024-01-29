@@ -13,7 +13,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
 | Data | Huggingface-Hub URL | Data Dir |
 |-|-|-|
 | Wikipedia| https://huggingface.co/datasets/wikipedia | ~/shared/hdd_ext/nvme1/public/language/wikipedia |
-| Wikitext-raw | https://huggingface.co/datasets/wikitext | ~/shared/hdd_ext/nvme1/public/language/wikitext |
+| Wikitext | https://huggingface.co/datasets/wikitext | ~/shared/hdd_ext/nvme1/public/language/wikitext |
 
 # Tutorial for Training LLM
 In this section, I will introduce how to Pretrain or Fine-tune LLM step by step.\
