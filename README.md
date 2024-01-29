@@ -1,20 +1,21 @@
 # Large Language Model
-
-## Introduction
-hugging
+Let's learn about how to 🔴 Pretrain or 🔵 Fine-tune Large-Language-Model with Pytorch!\
+First of all, all script is referred to [🤗Huggingface.transformers](https://github.com/huggingface/transformers/tree/main).\
+Before training LLM, I recommend you to read the paper about the target model first.\
 
 ## Model Architecture List
-The location of Model architectures is [here]()
+| Model | Huggingface-Hub URL | Model Dir | 
+|-|-|-|
+| [BERT](https://arxiv.org/pdf/1810.04805v2.pdf) | https://huggingface.co/bert-base-uncased |-|
+| [DistilBERT]() |-|-|
 
+## Dataset List
+| Data | Huggingface-Hub URL | Data Dir |
+|-|-|-|
+| Wikipedia| https://huggingface.co/datasets/wikipedia | ~/shared/hdd_ext/nvme1/public/language/wikipedia |
+| Wikitext-raw | https://huggingface.co/datasets/wikitext | ~/shared/hdd_ext/nvme1/public/language/wikitext |
 
-| Model | Huggingface-Hub URL |
-|-|-|
-| [BERT](https://arxiv.org/pdf/1810.04805v2.pdf) |-|
-
-## Dataset
-
-
-## Tutorial for Training LLM
+# Tutorial for Training LLM
 In this section, I will introduce how to Pretrain or Fine-tune LLM models step by step.\
 I try hard to explain the steps as easily as I can, so even beginners can understand and follow easily.
 
@@ -52,10 +53,21 @@ I try hard to explain the steps as easily as I can, so even beginners can unders
       ```bash
       wikipedia, 20220301.en
       ```
-### Step 3️⃣ Option) Import Custom Model & model Configuration
+### Step 3️⃣ Option) Import Custom Model
   If you want to import the Custom model(ex. [BERT](https://arxiv.org/pdf/1810.04805v2.pdf)) in 'run_mlm.py', add
   ```bash
   from BERT.bert_scratch import BertForMaskedLM as scratch_model
   ```
+  ⚠️ If you want to load pretrained Model, Skip this step!!
 
 ### Step 4️⃣ 
+
+
+
+
+
+
+# End
+More contents and more scripts will be added.\
+Is there anything what you want?
+Waiting for your feedback!
