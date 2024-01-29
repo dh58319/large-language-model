@@ -60,8 +60,8 @@ I try hard to explain the steps as easily as I can, so even beginners can unders
   ```
   ⚠️ If you want to load pretrained Model, Skip this step!!
 
-### Step 4️⃣ 
-
+### Step 4️⃣ Option) Set Configuration
+  
 
 
 
