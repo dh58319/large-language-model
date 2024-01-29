@@ -31,12 +31,10 @@ from transformers.utils.versions import require_version
 
 ## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
-# from BERT.bert_scratch import BertForMaskedLM as scratch_model
 from transformers.models.bert.configuration_bert import BertConfig
 
 def set_config(args):
-    return BertConfig()
-    # return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
+    return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
@@ -47,9 +45,9 @@ require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/lang
 parser = argparse.ArgumentParser(description="Pretraining on Masked Language Modeling task - Pytorch Large Language Model")
 
 group = parser.add_argument_group('Dataset')
-group.add_argument('--data_dir', type=str, help="Directory of stored Dataset")
 group.add_argument('--dataset', type=str, help="The name of the dataset")
 group.add_argument('--dataset_config', type=str, help="The configuration name of the dataset")
+group.add_argument('--data_dir', type=str, default=None, help="Directory of stored Dataset")
 group.add_argument('-s', '--streaming', action='store_true', default=False,
                    help="Enable streaming mode -> not require local disk usage")
 group.add_argument('--train_file', type=str,
@@ -134,6 +132,10 @@ def main(model_config, args):
     kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=18000))
     accelerator = Accelerator(gradient_accumulation_steps=args.grad_accum_steps, kwargs_handlers=[kwargs], **accelerate_log_kwargs)
 
+    if args.log_wandb:
+        if accelerator.is_main_process:
+            wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
+
     ## Make one log on every process with the configuration for debugging.
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -160,36 +162,24 @@ def main(model_config, args):
 
     ## Get Dataset
     ## public datasets are available on the hub - https://huggingface.co/datasets/
-    if args.dataset:
-        ## Store & Load dataset from Hub or Load dataset from initial directory
-        raw_datasets = load_dataset(args.dataset, args.dataset_config, streaming=args.streaming, trust_remote_code=True)
-        if "validation" not in raw_datasets.keys():
-            raw_datasets["validation"] = load_dataset(
-                args.dataset,
-                args.dataset_config,
-                split=f"train[:{args.valid_split_percentage}%]",
-                streaming=args.streaming,
-                trust_remote_code=True
-            )
-            raw_datasets["train"] = load_dataset(
-                args.dataset,
-                args.dataset_config,
-                split=f"train[{args.valid_split_percentage}%:]",
-                streaming=args.streaming,
-                trust_remote_code=True
-            )
-    else:
-        ## Load dataset from the specific directory
-        raw_datasets = load_dataset(args.data_dir)
-        if "validation" not in raw_datasets.keys():
-            raw_datasets["validation"] = load_dataset(
-                args.data_dir,
-                split=f"train[:{args.valid_split_percentage}%]",
-            )
-            raw_datasets["train"] = load_dataset(
-                args.data_dir,
-                split=f"train[{args.valid_split_percentage}%:]",
-            )
+    raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir, streaming=args.streaming, trust_remote_code=True)
+    if "validation" not in raw_datasets.keys():
+        raw_datasets["validation"] = load_dataset(
+            args.dataset,
+            args.dataset_config,
+            cache_dir=args.data_dir,
+            split=f"train[:{args.valid_split_percentage}%]",
+            streaming=args.streaming,
+            trust_remote_code=True
+        )
+        raw_datasets["train"] = load_dataset(
+            args.dataset,
+            args.dataset_config,
+            cache_dir=args.data_dir,
+            split=f"train[{args.valid_split_percentage}%:]",
+            streaming=args.streaming,
+            trust_remote_code=True
+        )
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -404,10 +394,6 @@ def main(model_config, args):
         experiment_config = vars(args)
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
         accelerator.init_trackers("mlm_train", experiment_config)
-
-    if args.log_wandb:
-        if accelerator.is_main_process:
-            wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
 
     # *** Start Train! *** #
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.grad_accum_steps
