@@ -29,9 +29,9 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-## import model & configuration of model
-from transformers.models.bert.configuration_bert import BertConfig
+## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
+from transformers.models.bert.configuration_bert import BertConfig
 
 def set_config(args):
     return BertConfig()
