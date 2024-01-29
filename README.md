@@ -16,7 +16,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
 | Wikitext-raw | https://huggingface.co/datasets/wikitext | ~/shared/hdd_ext/nvme1/public/language/wikitext |
 
 # Tutorial for Training LLM
-In this section, I will introduce how to Pretrain or Fine-tune LLM models step by step.\
+In this section, I will introduce how to Pretrain or Fine-tune LLM step by step.\
 I try hard to explain the steps as easily as I can, so even beginners can understand and follow easily.
 
 ### Step 1️⃣ Set environment
