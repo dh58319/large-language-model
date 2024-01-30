@@ -1,34 +1,12 @@
-import argparse
-import json
 import logging
-import math
 import os
-import random
-from pathlib import Path
-import wandb
 from datetime import timedelta
 
 import datasets
-import evaluate
-import torch
 from accelerate import Accelerator
-from accelerate.logging import get_logger
-from accelerate.utils import set_seed, InitProcessGroupKwargs
-from datasets import load_dataset
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
+from accelerate.utils import InitProcessGroupKwargs
 
 import transformers
-from transformers import (
-    AutoConfig,
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    DataCollatorWithPadding,
-    PretrainedConfig,
-    SchedulerType,
-    default_data_collator,
-    get_scheduler,
-)
 
 def init_accelerator(args):
     ## Initialize the accelerator
