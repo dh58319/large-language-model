@@ -35,8 +35,8 @@ I try hard to explain each step as easily as I can.
 # *** for example *** #
 
 # import model & configuration you build
-from model.BERT.modeling_bert import BertForMaskedLM as scratch_model
-from model.BERT.configuration_bert import BertConfig
+from model.bert.modeling_bert import BertForMaskedLM as scratch_model
+from model.bert.configuration_bert import BertConfig
 
 # Set configuration 
 def set_config(args):
