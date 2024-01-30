@@ -2,7 +2,7 @@
 In this section, I will introduce how to Pretrain LLM step by step.\
 I try hard to explain each step as easily as I can.
 
-### Step 1?? Set environment
+### Step 1️⃣ Set environment
   - 'transformers >= 4.38.0.dev0' (if the lastest version is released, download that version)
   ```bash
   git clone https://github.com/huggingface/transformers
@@ -13,7 +13,7 @@ I try hard to explain each step as easily as I can.
   ```bash
   pip install -r requirements.txt
   ```
-### Step 2?? Prepare model & dataset for training
+### Step 2️⃣ Prepare model & dataset for training
   - Prepare model to use from [Huggingface Hub-Model](https://huggingface.co/models)
     - ex) Pretrain '[bert-tiny](https://huggingface.co/prajjwal1/bert-tiny)' (sort: most likes)\
       What you have to remember is
@@ -30,7 +30,7 @@ I try hard to explain each step as easily as I can.
       ```bash
       wikipedia, 20220301.en
       ```
-### Step 3?? Import model & configuration
+### Step 3️⃣ Import model & configuration
 ```bash
 # *** for example *** #
 
@@ -43,16 +43,16 @@ def set_config(args):
     return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
 ```
 
-### Step 4?? Start train
+### Step 4️⃣ Start train
 ```bash
 # *** for example *** #
 ["CUDA_VISIBLE_DEVICES"]='0,' \         # no. of GPU to use
 accelerate \ 
 run_mlm.py \                            # run_script
---dataset wikipedia \                   # from step 2??
---dataset_config 20220301.en \          # from step 2??
+--dataset wikipedia \                   # from step 2️⃣
+--dataset_config 20220301.en \          # from step 2️⃣
 --data_dir ~/shared/... \                   
 --streaming \                           # True : not use local disk / False : store dataset in local disk
---tokenizer prajjwal1/bert-tiny \       # from step 2??
+--tokenizer prajjwal1/bert-tiny \       # from step 2️⃣
 ...                                     # other arguments...
 ```
