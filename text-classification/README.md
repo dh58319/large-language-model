@@ -14,14 +14,8 @@ I try hard to explain the steps as easily as I can, so even beginners can unders
   pip install -r requirements.txt
   ```
 ### Step 2️⃣ Prepare model & dataset for training
-  Explore [Huggingface Hub](https://huggingface.co/docs/hub/index) to prepare model and dataset to use.
   - Prepare model to use from [Huggingface Hub-Model](https://huggingface.co/models)
-    - ex) ? Pretrain '[bert-tiny](https://huggingface.co/prajjwal1/bert-tiny)' (sort: most likes)\
-      What you have to prepare is
-      ```bash
-      prajjwal1/bert-tiny
-      ```
-    - ex) ? Fine-tune pretrained model '[bert-base-uncased](https://huggingface.co/bert-base-uncased)'\
+    - ex) Fine-tune pretrained model '[bert-base-uncased](https://huggingface.co/bert-base-uncased)'\
       What you have to prepare is
       ```bash
       bert-base-uncased
