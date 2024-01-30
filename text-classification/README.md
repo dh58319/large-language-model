@@ -2,7 +2,7 @@
 In this section, I will introduce how to Pretrain or Fine-tune LLM step by step.\
 I try hard to explain the steps as easily as I can, so even beginners can understand and follow easily.
 
-### Step 1?? Set environment
+### Step 1️⃣ Set environment
   - 'transformers >= 4.38.0.dev0' (if the lastest version is released, download that version)
   ```bash
   git clone https://github.com/huggingface/transformers
@@ -13,7 +13,7 @@ I try hard to explain the steps as easily as I can, so even beginners can unders
   ```bash
   pip install -r requirements.txt
   ```
-### Step 2?? Prepare model & dataset for training
+### Step 2️⃣ Prepare model & dataset for training
   Explore [Huggingface Hub](https://huggingface.co/docs/hub/index) to prepare model and dataset to use.
   - Prepare model to use from [Huggingface Hub-Model](https://huggingface.co/models)
     - ex) ? Pretrain '[bert-tiny](https://huggingface.co/prajjwal1/bert-tiny)' (sort: most likes)\
