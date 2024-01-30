@@ -29,6 +29,8 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
+import utils
+
 ## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
 from transformers.models.bert.configuration_bert import BertConfig
@@ -125,30 +127,15 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
                     ))
 
 def main(model_config, args):
-    ## Initialize the Accelerator
-    accelerate_log_kwargs = {}
-    if args.with_tracking:
-        accelerate_log_kwargs["output_dir"] = args.out_dir
-    kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=18000))
-    accelerator = Accelerator(gradient_accumulation_steps=args.grad_accum_steps, kwargs_handlers=[kwargs], **accelerate_log_kwargs)
+    ## Initialize the accelerator
+    accelerator = utils.init_accelerator(args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
             wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
 
     ## Make one log on every process with the configuration for debugging.
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO,
-    )
-    logger.info(accelerator.state, main_process_only=False)
-    if accelerator.is_local_main_process:
-        datasets.utils.logging.set_verbosity_warning()
-        transformers.utils.logging.set_verbosity_info()
-    else:
-        datasets.utils.logging.set_verbosity_error()
-        transformers.utils.logging.set_verbosity_error()
+    utils.make_log(logger, accelerator)
 
     ## Set training seed
     if args.seed:
@@ -357,7 +344,6 @@ def main(model_config, args):
             "weight_decay": 0.0,
         }
     ]
-    ## Manage with argparse
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr)
 
     ## Calculate the number of Train steps
@@ -426,9 +412,9 @@ def main(model_config, args):
             completed_steps = starting_epoch * num_update_steps_per_epoch
         else:
             # need to multiply `gradient_accumulation_steps` to reflect real steps
-            resume_step = int(training_difference.replace("step_", "")) * args.gradient_accumulation_steps
+            resume_step = int(training_difference.replace("step_", "")) * args.grad_accum_steps
             starting_epoch = resume_step // len(train_dataloader)
-            completed_steps = resume_step // args.gradient_accumulation_steps
+            completed_steps = resume_step // args.grad_accum_steps
             resume_step -= starting_epoch * len(train_dataloader)
 
     ## Train loop
@@ -535,7 +521,8 @@ def main(model_config, args):
             with open(os.path.join(args.out_dir, "all_results.json"), "w") as f:
                 json.dump({"perplexity": perplexity}, f)
 
-    wandb.finish()
+    if args.log_wandb:
+        wandb.finish()
 
 if __name__ == "__main__":
     args = parser.parse_args()
