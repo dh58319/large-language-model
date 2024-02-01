@@ -1,4 +1,4 @@
-# Pretraining LLM
+# Pretrain LLM
 In this section, I will introduce how to Pretrain LLM step by step.\
 I try hard to explain each step as easily as I can.
 
