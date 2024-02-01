@@ -1,4 +1,4 @@
-# Tutorial for Training LLM
+# Fine-tuning LLM
 In this section, I will introduce how to Pretrain or Fine-tune LLM step by step.\
 I try hard to explain the steps as easily as I can, so even beginners can understand and follow easily.
 
