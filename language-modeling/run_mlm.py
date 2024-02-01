@@ -7,18 +7,14 @@ import math
 import os
 import wandb
 from itertools import chain
-from datetime import timedelta
-
-import datasets
 import torch
-from accelerate import Accelerator
+
 from accelerate.logging import get_logger
-from accelerate.utils import set_seed, InitProcessGroupKwargs
+from accelerate.utils import set_seed
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-import transformers
 from transformers import (
     AutoConfig,
     AutoModelForMaskedLM,
@@ -29,7 +25,7 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-import utils
+from utils import init_accelerator, make_log, load_checkpoint
 
 ## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
@@ -105,7 +101,11 @@ group.add_argument('--checkpointing_steps', type=str, default=None,
                    help=(
                        " default: not save checkpoint "
                        " 'n'(ex.'10'): save checkpoint for every n(ex.10) step "
-                       " 'epoch': save checkpoint for every epoch "
+                   ))
+group.add_argument('--checkpointing_epochs', type=str, default=None,
+                   help=(
+                       " default: not save checkpoint "
+                       " 'n'(ex.'10'): save checkpoint for every n(ex.10) epoch "
                    ))
 group.add_argument('--resume_from_checkpoint', type=str, default=None,
                     help="Directory to continue training from Checkpoint")
@@ -128,14 +128,14 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
 
 def main(model_config, args):
     ## Initialize the accelerator
-    accelerator = utils.init_accelerator(args)
+    accelerator = init_accelerator(args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
             wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
 
     ## Make one log on every process with the configuration for debugging.
-    utils.make_log(logger, accelerator)
+    make_log(logger, accelerator)
 
     ## Set training seed
     if args.seed:
@@ -344,7 +344,7 @@ def main(model_config, args):
             "weight_decay": 0.0,
         }
     ]
-    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr)
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr, betas=(0.9, 0.999))
 
     ## Calculate the number of Train steps
     overrode_max_train_steps = False
@@ -376,6 +376,10 @@ def main(model_config, args):
     if checkpointing_steps is not None and checkpointing_steps.isdigit():
         checkpointing_steps = int(checkpointing_steps)
 
+    checkpointing_epochs = args.checkpointing_epochs
+    if checkpointing_epochs is not None and checkpointing_epochs.isdigit():
+        checkpointing_epochs = int(checkpointing_epochs)
+
     if args.with_tracking:
         experiment_config = vars(args)
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
@@ -397,25 +401,8 @@ def main(model_config, args):
 
     ## Load weights & states from Checkpoint
     if args.resume_from_checkpoint:
-        checkpoint_path = args.resume_from_checkpoint
-        path = os.path.basename(args.resume_from_checkpoint)
-
-        accelerator.print(f"Resumed from Checkpoint : {checkpoint_path}")
-        accelerator.load_state(checkpoint_path)
-
-        ## Extract 'epoch_{i}' or 'step_{i}'
-        training_difference = os.splitext(path)[0]
-
-        if "epoch" in training_difference:
-            starting_epoch = int(training_difference.replace("epoch_", "")) + 1
-            resume_step = None
-            completed_steps = starting_epoch * num_update_steps_per_epoch
-        else:
-            # need to multiply `gradient_accumulation_steps` to reflect real steps
-            resume_step = int(training_difference.replace("step_", "")) * args.grad_accum_steps
-            starting_epoch = resume_step // len(train_dataloader)
-            completed_steps = resume_step // args.grad_accum_steps
-            resume_step -= starting_epoch * len(train_dataloader)
+        resume_step, completed_steps, starting_epoch =\
+            load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
 
     ## Train loop
     for epoch in range(starting_epoch, args.train_epoch):
@@ -499,14 +486,14 @@ def main(model_config, args):
                     }
                 )
 
-        if args.checkpointing_steps == "epoch":
-            ## Save checkpoint for every epoch
-            output_dir = f"epoch_{epoch}"
-            if args.output_dir is not None:
-                output_dir = os.path.join(args.out_dir, output_dir)
-            accelerator.save_state(output_dir)
+        if isinstance(checkpointing_epochs, int):
+            if epoch % checkpointing_epochs == 0:
+                output_dir = f"epoch_{epoch}"
+                if args.out_dir is not None:
+                    output_dir = os.path.join(args.out_dir, output_dir)
+                accelerator.save_state(output_dir)
 
-            ## Remove the oldest checkpoint if len(checkpoint_files) > num_checkpoint_hist
+        ## Remove the oldest checkpoint if len(checkpoint_files) > num_checkpoint_hist
 
     accelerator.end_training()
 

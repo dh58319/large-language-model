@@ -2,37 +2,29 @@
 
 import argparse
 import json
-import logging
 import math
 import os
-import random
-from pathlib import Path
-import wandb
-from datetime import timedelta
 
-import datasets
+import wandb
 import evaluate
 import torch
-from accelerate import Accelerator
 from accelerate.logging import get_logger
-from accelerate.utils import set_seed, InitProcessGroupKwargs
+from accelerate.utils import set_seed
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-import transformers
 from transformers import (
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollatorWithPadding,
     PretrainedConfig,
-    SchedulerType,
     default_data_collator,
     get_scheduler,
 )
 
-import utils
+from utils import init_accelerator, make_log, load_checkpoint
 
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
@@ -122,14 +114,14 @@ parser.add_argument('--ignore_mismatched_sizes', action="store_true",
 
 def main(args):
     ## Initialize the accelerator
-    accelerator = utils.init_accelerator(args)
+    accelerator = init_accelerator(args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
             wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
 
     ## Make one log on every process with the configuration for debugging.
-    utils.make_log(logger, accelerator)
+    make_log(logger, accelerator)
 
     ## Set training seed
     if args.seed is not None:
@@ -305,8 +297,9 @@ def main(args):
     starting_epoch = 0
 
     ## Load weights & states from Checkpoint
-    resume_step, completed_steps, starting_epoch =\
-        utils.load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
+    if args.resume_from_checkpoint:
+        resume_step, completed_steps, starting_epoch =\
+            load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
 
     for epoch in range(starting_epoch, args.train_epoch):
         model.train()
