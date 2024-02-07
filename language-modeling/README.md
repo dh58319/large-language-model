@@ -14,21 +14,17 @@ I try hard to explain each step as easily as I can.
   pip install -r requirements.txt
   ```
 ### Step 2️⃣ Prepare model & dataset for training
-  - Prepare model to use from [Huggingface Hub-Model](https://huggingface.co/models)
-    - ex) Pretrain '[bert-tiny](https://huggingface.co/prajjwal1/bert-tiny)' (sort: most likes)\
-      What you have to remember is
+  - Select model to use from [Huggingface Hub-Model](https://huggingface.co/models)
+    - What you have to remember is
       ```bash
-      prajjwal1/bert-tiny
+      prajjwal1/bert-tiny         ## from Hub
       ```
-  - Prepare dataset to use from [Huggingface Hub-Dataset](https://huggingface.co/datasets)
-    - ex) for '[wikipedia](https://huggingface.co/datasets/wikipedia)'\
-      What you have to remember is
+  - Select dataset to use from [Huggingface Hub-Dataset](https://huggingface.co/datasets)
+    - What you have to remember is
       ```bash
-      wikipedia
-      ```
-      If you need pre-processed subsets(ex. 20220301.en),
-      ```bash
-      wikipedia, 20220301.en
+      wikipedia                 ## dataset
+      # or
+      wikipedia, 20220301.en    ## dataset, pre-processed subsets
       ```
 ### Step 3️⃣ Import model & configuration
 ```bash
@@ -39,6 +35,8 @@ from model.bert.modeling_bert import BertForMaskedLM as scratch_model
 from model.bert.configuration_bert import BertConfig
 
 # Set configuration 
+# in script, the parameters are set with "args.tokenizer" automatically
+# if you want to set those in person, just change it like following lines
 def set_config(args):
     return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
 ```
@@ -48,7 +46,7 @@ def set_config(args):
 # *** for example *** #
 ["CUDA_VISIBLE_DEVICES"]='0,' \         # no. of GPU to use
 accelerate \ 
-run_mlm.py \                            # run_script
+run_mlm.py \                            # script for run
 --dataset wikipedia \                   # from step 2️⃣
 --dataset_config 20220301.en \          # from step 2️⃣
 --data_dir ~/shared/... \                   
