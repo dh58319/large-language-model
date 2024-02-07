@@ -21,19 +21,22 @@ Before training LLM, I recommend you to read the paper about the target model fi
 |------|---------------------------------------------|
 | GLUE | ~/shared/hdd_ext/nvme1/public/language/glue |
 
-## Model Zoo (Pretrain)
-### Wikipedia
+## Model Zoo
+### Pretrain
+- Wikipedia
+
 | Model     | epoch | perplexity | eval_loss | cfg | 
 |-----------|------|------------|----------|-----|
 | bert-tiny | -    | -          | -        | -   |
 | bert-mini | 40   | 8.073      | 2.089    | -   |
 
-## Model Zoo (Fine-tune)
-### GLUE
-| Model | CoLA | MNLI | MRPC | QNLI | QQP | RTE | SST-2 | STS-B | WNLI |   
-|-|------|-|-|-|-|-|-|-|-|
-| bert-tiny |-|-|-|-|-|-|-|-|-|
-| bert-mini |-|-|-|-|-|-|-|-|-|
+### Fine-tune
+- GLUE
+
+| Model | CoLA | MNLI | MRPC | QNLI | QQP | RTE | SST-2 | STS-B | WNLI | cfg |
+|-|------|-|-|-|-|-|-|-|-|-|
+| bert-tiny |-|-|-|-|-|-|-|-|-|-|
+| bert-mini |-|-|-|-|-|-|-|-|-|-|
 
 # End
 More contents and more scripts will be added.\
