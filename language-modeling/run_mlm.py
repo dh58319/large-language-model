@@ -31,8 +31,17 @@ from utils import init_accelerator, make_log, load_checkpoint
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
 from transformers.models.bert.configuration_bert import BertConfig
 
+BERT_cfg = {
+    ## prajjwal1/bert-##
+    "prajjwal1/bert-tiny"  : [128, 2],
+    "prajjwal1/bert-mini"  : [256, 4],
+    "prajjwal1/bert-small" : [512, 4],
+    "prajjwal1/bert-medium": [512, 8],
+}
+
 def set_config(args):
-    return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
+    return BertConfig(hidden_size=BERT_cfg[args.tokenizer][0], num_hidden_layers=BERT_cfg[args.tokenizer][1],
+                      num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob)
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
@@ -508,10 +517,10 @@ def main(model_config, args):
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(
-            os.path.join(args.out_dir, "model"), is_main_process=accelerator.is_main_process, save_function=accelerator.save
+            os.path.join(args.out_dir, args.run_name), is_main_process=accelerator.is_main_process, save_function=accelerator.save
         )
         if accelerator.is_main_process:
-            tokenizer.save_pretrained(os.path.join(args.out_dir, "tokenizer"))
+            tokenizer.save_pretrained(os.path.join(args.out_dir, args.run_name))
             with open(os.path.join(args.out_dir, "all_results.json"), "w") as f:
                 json.dump({"perplexity": perplexity}, f)
 

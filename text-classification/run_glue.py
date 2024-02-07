@@ -205,12 +205,19 @@ def main(args):
         return result
 
     with accelerator.main_process_first():
-        processed_datasets = raw_datasets.map(
-            preprocess_function,
-            batched=True,
-            remove_columns=raw_datasets["train"].column_names,
-            desc="Running tokenizer on dataset"
-        )
+        if not args.streaming:
+            processed_datasets = raw_datasets.map(
+                preprocess_function,
+                batched=True,
+                remove_columns=raw_datasets["train"].column_names,
+                desc="Running tokenizer on dataset"
+            )
+        else:
+            processed_datasets = raw_datasets.map(
+                preprocess_function,
+                batched=True,
+                remove_columns=raw_datasets["train"].column_names,
+            )
 
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation_matched" if args.task == "mnli" else "validation"]
@@ -388,7 +395,7 @@ def main(args):
         if args.checkpointing_steps == "epoch":
             ## Save checkpoint for every epoch
             output_dir = f"epoch_{epoch}"
-            if args.output_dir is not None:
+            if args.out_dir is not None:
                 output_dir = os.path.join(args.out_dir, output_dir)
             accelerator.save_state(output_dir)
 
@@ -400,10 +407,10 @@ def main(args):
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(
-            os.path.join(args.out_dir, "model"), is_main_process=accelerator.is_main_process, save_function=accelerator.save
+            os.path.join(args.out_dir, f"{args.run_name}_{args.task}"), is_main_process=accelerator.is_main_process, save_function=accelerator.save
         )
         if accelerator.is_main_process:
-            tokenizer.save_pretrained(os.path.join(args.out_dir, "tokenizer"))
+            tokenizer.save_pretrained(os.path.join(args.out_dir, f"{args.run_name}_{args.task}"))
 
     if args.task == "mnli":
         eval_dataset = processed_datasets["validation_mismatched"]
