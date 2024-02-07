@@ -36,7 +36,7 @@ from model.bert.configuration_bert import BertConfig
 
 # Set configuration 
 # in script, the parameters are set with "args.tokenizer" automatically
-# if you want to set those in person, just change it like following lines
+# if you want to set those in person, just change like following lines
 def set_config(args):
     return BertConfig(hidden_size=256, num_hidden_layers=4, num_attention_heads=4, attention_probs_dropout_prob=args.drop_prob)
 ```
