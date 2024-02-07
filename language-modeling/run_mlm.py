@@ -493,6 +493,13 @@ def main(model_config, args):
                     output_dir = os.path.join(args.out_dir, output_dir)
                 accelerator.save_state(output_dir)
 
+        ## Save final state
+        if epoch == args.train_epoch:
+            output_dir = f"final_epoch_{epoch}"
+            if args.out_dir is not None:
+                output_dir = os.path.join(args.out_dir, output_dir)
+            accelerator.save_state(output_dir)
+
         ## Remove the oldest checkpoint if len(checkpoint_files) > num_checkpoint_hist
 
     accelerator.end_training()

@@ -81,7 +81,7 @@ group.add_argument('--max_train_steps', type=int, default=None,
                        "Total number of training Steps"
                        "If provided, overrides num_train_epochs"
                    ))
-group.add_argument('--num_warmup_steps', type=int, defualt=0, help="Number of steps for the Warmup in LR scheduler")
+group.add_argument('--num_warmup_steps', type=int, default=0, help="Number of steps for the Warmup in LR scheduler")
 group.add_argument('--grad_accum_steps', type=int, default=1,
                    help="Number of update steps to accumulate before performing a backward/update pass")
 
@@ -426,7 +426,7 @@ def main(args):
 
     if args.out_dir:
         all_results = {f"eval_{k}": v for k, v in eval_metric.items()}
-        with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
+        with open(os.path.join(args.out_dir, "all_results.json"), "w") as f:
             json.dump(all_results, f)
 
     if args.log_wandb:
