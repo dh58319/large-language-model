@@ -38,8 +38,8 @@ Introduced steps below are about fine-tuning pretrained models on GLUE task.
 
 ### Step 3️⃣ Start train
 ```bash
-["CUDA_VISIBLE_DEVICES"]='0,' \         # no. of GPU to use
-accelerate \ 
+CUDA_VISIBLE_DEVICES='0,' \         # no. of GPU to use
+accelerate launch \ 
 run_glue.py \                           # script for run
 --task mnli \                           # from step 2️⃣
 --data_dir ~/shared/... \

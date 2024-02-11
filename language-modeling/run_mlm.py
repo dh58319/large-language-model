@@ -158,7 +158,8 @@ def main(model_config, args):
 
     ## Get Dataset
     ## public datasets are available on the hub - https://huggingface.co/datasets/
-    raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir, streaming=args.streaming, trust_remote_code=True)
+    raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir,
+                                streaming=args.streaming, trust_remote_code=True)
     if "validation" not in raw_datasets.keys():
         raw_datasets["validation"] = load_dataset(
             args.dataset,

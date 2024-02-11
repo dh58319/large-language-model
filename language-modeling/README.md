@@ -44,8 +44,8 @@ def set_config(args):
 ### Step 4️⃣ Start train
 ```bash
 # *** for example *** #
-["CUDA_VISIBLE_DEVICES"]='0,' \         # no. of GPU to use
-accelerate \ 
+CUDA_VISIBLE_DEVICES='0,' \         # no. of GPU to use
+accelerate launch \ 
 run_mlm.py \                            # script for run
 --dataset wikipedia \                   # from step 2️⃣
 --dataset_config 20220301.en \          # from step 2️⃣
