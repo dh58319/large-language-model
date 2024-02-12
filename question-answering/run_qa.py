@@ -97,14 +97,14 @@ group.add_argument('--train_batch_size', type=int, default=16,
                    help="Batch size for Training dataloader (per device)")
 group.add_argument('--eval_batch_size', type=int, default=16,
                    help="Batch size for evaluation dataloader (per device)")
-group.add_argument('--mlm_probability', type=float, default=0.15, help="Probability of masked tokens for MLM")
+group.add_argument('--grad_accum_steps', type=int, default=1,
+                   help="Number of update steps to accumulate gradients before performing a backward/update pass")
 group.add_argument('--lr', type=float, default=5e-5, help="Learning rate")
+group.add_argument('--mlm_probability', type=float, default=0.15, help="Probability of masked tokens for MLM")
 group.add_argument('--weight_decay', type=float, default=0.0, help="Weight decay")
 group.add_argument('--train_epoch', type=int, default=3, help="Total number of Training epochs")
 group.add_argument('--max_train_steps', type=int, default=None,
                    help="Total number of Training steps -> override 'epochs'")
-group.add_argument('--grad_accum_steps', type=int, default=1,
-                   help="Number of update steps to accumulate gradients before performing a backward/update pass")
 group.add_argument('--sche', type=str, default="linear",
                    help="LR Scheduler : 'linear', 'cosine', cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'")
 group.add_argument('--num_warmup_steps', type=int, default=0, help="Number of Warmup step in LR scheduler")
@@ -219,4 +219,5 @@ def main(model_config, args):
 if __name__ == "__main__":
     args = parser.parse_args()
     model_config = set_config(args)
+
     main(model_config, args)

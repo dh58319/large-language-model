@@ -71,8 +71,17 @@ group.add_argument('--pad_to_max_length', action="store_true",
                    help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used.")
 group.add_argument('--train_batch_size', type=int, default=16, help="Batch size per device for Training dataloader")
 group.add_argument('--eval_batch_size', type=int, default=16, help="Batch size per device for Evaluation dataloader")
+group.add_argument('--use_param_list', action='store_true', default=False,
+                   help="Use batch_list, lr_list for using more than one parameters")
+group.add_argument('--batch_list', type=list,
+                   default=[[8, 1], [16, 1], [16, 2], [16, 4], [16, 8]],
+                   help=(
+                       "List of Batch size for Train & Eval dataloader per device"
+                       "[[batch_size, grad_accum_step],[batch_size, grad_accum_step],...]"
+                   ))
 group.add_argument('--lr', type=float, default=5e-5,
                    help="Initial Learning Rate to use (after the potential warmup period)")
+group.add_argument('--lr_list', type=list, default=[1e-4, 3e-4, 3e-5, 5e-5], help="List of Learning rate")
 group.add_argument('--sche', type=str, default="linear", help="Learning Rate scheduler type")
 group.add_argument('--weight_decay', type=float, default=0.0, help="Weight Decay to use")
 group.add_argument('--train_epoch', type=int, default=3, help="Total number of training Epochs")
@@ -407,10 +416,10 @@ def main(args):
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(
-            os.path.join(args.out_dir, f"{args.run_name}_{args.task}"), is_main_process=accelerator.is_main_process, save_function=accelerator.save
+            os.path.join(args.out_dir, args.run_name), is_main_process=accelerator.is_main_process, save_function=accelerator.save
         )
         if accelerator.is_main_process:
-            tokenizer.save_pretrained(os.path.join(args.out_dir, f"{args.run_name}_{args.task}"))
+            tokenizer.save_pretrained(os.path.join(args.out_dir, args.run_name))
 
     if args.task == "mnli":
         eval_dataset = processed_datasets["validation_mismatched"]
@@ -441,4 +450,24 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args)
+
+    if args.use_param_list:
+        print(f"List of Batch sizes: {args.batch_list}")
+        print(f"List of Learning rates: {args.lr_list}")
+        out_dir = args.out_dir
+        run_name = args.run_name
+        for train_bs in args.batch_list:
+            args.train_batch_size = train_bs[0]
+            args.grad_accum_steps = train_bs[1]
+            for lr in args.lr_list:
+                args.lr = lr
+
+                args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
+                args.out_dir = os.path.join(out_dir,
+                                            f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
+
+                print(f"Total Batch Size: {args.train_batch_size*args.grad_accum_steps}")
+                print(f"Learning Rate: {args.lr}")
+                main(args)
+    else:
+        main(args)
