@@ -52,6 +52,11 @@ parser = argparse.ArgumentParser(description="Finetuning on GLUE - Pytorch Large
 group = parser.add_argument_group('Dataset')
 group.add_argument('--task', type=str, default=None, help="Name of the GLUE task to train on",
                    choices=list(task_to_keys.keys()))
+group.add_argument('--task_list', type=list, default=list(task_to_keys.keys()),
+                   help=(
+                       "If 'use_param_list' passed, list of tasks will be applied sequentially"
+                       "ex. ['mnli', 'cola']"
+                   ))
 group.add_argument('--data_dir', type=str, help="Directory of stored Custom Dataset")
 group.add_argument('-s', '--streaming', action='store_true', default=False,
                    help="Enable streaming mode -> not require local disk usage")
@@ -72,7 +77,7 @@ group.add_argument('--pad_to_max_length', action="store_true",
 group.add_argument('--train_batch_size', type=int, default=16, help="Batch size per device for Training dataloader")
 group.add_argument('--eval_batch_size', type=int, default=16, help="Batch size per device for Evaluation dataloader")
 group.add_argument('--use_param_list', action='store_true', default=False,
-                   help="Use batch_list, lr_list for using more than one parameters")
+                   help="Use task_list, batch_list, lr_list for using more than one parameters")
 group.add_argument('--batch_list', type=list,
                    default=[[8, 1], [16, 1], [16, 2], [16, 4], [16, 8]],
                    help=(
@@ -451,23 +456,32 @@ def main(args):
 if __name__ == "__main__":
     args = parser.parse_args()
 
+    ## Use Parameter list to apply variable parameters for training.
+    ## If passed, you don't need to change parameters every time.
+    ## Just make input as list!
     if args.use_param_list:
+        print(f"List of Tasks: {args.task_list}")
         print(f"List of Batch sizes: {args.batch_list}")
         print(f"List of Learning rates: {args.lr_list}")
+
         out_dir = args.out_dir
+        project = args.project
         run_name = args.run_name
-        for train_bs in args.batch_list:
-            args.train_batch_size = train_bs[0]
-            args.grad_accum_steps = train_bs[1]
-            for lr in args.lr_list:
-                args.lr = lr
+        for task in args.task_list:
+            args.task = task
+            args.project = f"{project}_{task.upper()}"
+            for train_bs in args.batch_list:
+                args.train_batch_size = train_bs[0]
+                args.grad_accum_steps = train_bs[1]
+                for lr in args.lr_list:
+                    args.lr = lr
 
-                args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
-                args.out_dir = os.path.join(out_dir,
-                                            f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
+                    args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
+                    args.out_dir = os.path.join(out_dir,
+                                                f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
 
-                print(f"Total Batch Size: {args.train_batch_size*args.grad_accum_steps}")
-                print(f"Learning Rate: {args.lr}")
-                main(args)
+                    print(f"Total Batch Size: {args.train_batch_size*args.grad_accum_steps}")
+                    print(f"Learning Rate: {args.lr}")
+                    main(args)
     else:
         main(args)
