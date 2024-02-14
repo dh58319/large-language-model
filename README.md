@@ -25,10 +25,10 @@ Before training LLM, I recommend you to read the paper about the target model fi
 ### Pretrain
 - Wikipedia
 
-|    Model    |  epoch  |  perplexity  |  eval_loss  |  cfg  | 
-|:-----------:|:-------:|:------------:|:-----------:|:-----:|
-|  bert-tiny  |   40    |    26.211    |    3.266    |   -   |
-|  bert-mini  |   40    |    8.073     |    2.089    |   -   |
+|    Model    |  epoch  |  perplexity  |  eval_loss  |                                               cfg                                                | 
+|:-----------:|:-------:|:------------:|:-----------:|:------------------------------------------------------------------------------------------------:|
+|  bert-tiny  |   40    |    26.211    |    3.266    | [download](https://drive.google.com/file/d/1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y/view?usp=sharing) |
+|  bert-mini  |   40    |    8.073     |    2.089    |                                                -                                                 |
 
 ### Fine-tune
 - GLUE
