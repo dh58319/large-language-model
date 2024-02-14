@@ -479,9 +479,6 @@ if __name__ == "__main__":
                     args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
                     args.out_dir = os.path.join(out_dir,
                                                 f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
-
-                    print(f"Total Batch Size: {args.train_batch_size*args.grad_accum_steps}")
-                    print(f"Learning Rate: {args.lr}")
                     main(args)
     else:
         main(args)
