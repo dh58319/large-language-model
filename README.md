@@ -38,10 +38,10 @@ Before training LLM, I recommend you to read the paper about the target model fi
   - Learning rate : 1e-4, 3e-4, 3e-5, 5e-5
   - epoch : 4
 
-  |   Model    |   CoLA   |  MNLI   |     MRPC      | QNLI  |     QQP     |  RTE  | SST-2 | STS-B  | WNLI  |     cfg      |
-  |:----------:|:--------:|:-------:|:-------------:|:-----:|:-----------:|:-----:|:-----:|:------:|:-----:|:------------:|
-  | bert-tiny  |  0.1739  |  57.31  |  82.83/73.77  | 64.29 | 65.71/77.47 | 58.84 | 83.03 |   -    |   -   | [download]() |
-  | bert-mini  |    -     |    -    |       -       |   -   |      -      |   -   |   -   |   -    |   -   |      -       |
+  |   Model    |   CoLA   |  MNLI   |     MRPC      | QNLI  |     QQP     |  RTE  | SST-2 |    STS-B    | WNLI  |     cfg      |
+  |:----------:|:--------:|:-------:|:-------------:|:-----:|:-----------:|:-----:|:-----:|:-----------:|:-----:|:------------:|
+  | bert-tiny  |  0.1739  |  57.31  |  82.83/73.77  | 64.29 | 65.71/77.47 | 58.84 | 83.03 | 40.85/40.28 | 59.15 | [download](https://drive.google.com/file/d/1RyRXSx_9Rew2BTtUPigPhv3SHhMp6PUa/view?usp=sharing) |
+  | bert-mini  |    -     |    -    |       -       |   -   |      -      |   -   |   -   |      -      |   -   |      -       |
 
 # End
 More contents and more scripts will be added.\
