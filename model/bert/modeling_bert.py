@@ -39,6 +39,12 @@ logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "bert-base-uncased"
 _CONFIG_FOR_DOC = "BertConfig"
 
+class BertOnlyMLMHead(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.predictions = BerLMPredictionHead(config)
+
+    def forward(self,):
 
 class BertModel(BertPreTrainedModel):
     def __init__(self, config, add_pooling_layer=True):
@@ -157,3 +163,4 @@ class BertForMaskedLM(BertPreTrainedModel):
             )
 
         self.bert = BertModel(config, add_pooling_layer=False)
+        self.cls = BertOnlyMLMHead(config)

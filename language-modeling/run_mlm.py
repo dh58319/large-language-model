@@ -41,7 +41,8 @@ BERT_cfg = {
 
 def set_config(args):
     return BertConfig(hidden_size=BERT_cfg[args.tokenizer][0], num_hidden_layers=BERT_cfg[args.tokenizer][1],
-                      num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob)
+                      num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob,
+                      intermediate_size=512)
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")

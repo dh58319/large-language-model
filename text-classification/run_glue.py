@@ -460,6 +460,9 @@ if __name__ == "__main__":
     ## If passed, you don't need to change parameters every time.
     ## Just make input as list!
     if args.use_param_list:
+        if args.task is not None:
+            args.task_list = [args.task]
+
         print(f"List of Tasks: {args.task_list}")
         print(f"List of Batch sizes: {args.batch_list}")
         print(f"List of Learning rates: {args.lr_list}")
@@ -470,6 +473,7 @@ if __name__ == "__main__":
         for task in args.task_list:
             args.task = task
             args.project = f"{project}_{task.upper()}"
+            args.out_dir = os.path.join(out_dir, args.task)
             for train_bs in args.batch_list:
                 args.train_batch_size = train_bs[0]
                 args.grad_accum_steps = train_bs[1]
@@ -477,8 +481,8 @@ if __name__ == "__main__":
                     args.lr = lr
 
                     args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
-                    args.out_dir = os.path.join(out_dir,
-                                                f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
+                    # args.out_dir = os.path.join(out_dir,
+                    #                             f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
                     main(args)
     else:
         main(args)
