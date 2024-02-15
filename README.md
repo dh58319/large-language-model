@@ -35,6 +35,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
 
 ### Fine-tune
 - GLUE
+  - with Pretrained model from above 'Pretrain' table
   - Batch size : 8, 16, 32, 64, 128
   - Learning rate : 1e-4, 3e-4, 3e-5, 5e-5
   - epoch : 4
