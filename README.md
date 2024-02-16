@@ -28,10 +28,10 @@ Before training LLM, I recommend you to read the paper about the target model fi
 - Wikipedia
   - epoch : 40
 
-|    Model    |  L/H  |  perplexity  |  eval_loss  |                                               cfg                                                | 
-|:-----------:|:-----:|:------------:|:-----------:|:------------------------------------------------------------------------------------------------:|
-|  bert-tiny  | 2/128 |    26.211    |    3.266    | [download](https://drive.google.com/file/d/1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y/view?usp=sharing) |
-|  bert-mini  | 4/256 |    8.073     |    2.089    |                                                -                                                 |
+|    Model    |  L/H  | perplexity | eval_loss |                                              cfg                                               | 
+|:-----------:|:-----:|:----------:|:---------:|:----------------------------------------------------------------------------------------------:|
+|  bert-tiny  | 2/128 |   26.211   |   3.266   | [download](https://drive.google.com/file/d/1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y/view?usp=sharing) |
+|  bert-mini  | 4/256 |   8.057    |   2.087   | [download](https://drive.google.com/file/d/1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ/view?usp=sharing) |
 
 ### Fine-tune
 - GLUE
