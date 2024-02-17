@@ -43,7 +43,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
   |   Model    |   CoLA   |  MNLI   |     MRPC      | QNLI  |     QQP     |  RTE  | SST-2 |    STS-B    | WNLI  |     cfg      |
   |:----------:|:--------:|:-------:|:-------------:|:-----:|:-----------:|:-----:|:-----:|:-----------:|:-----:|:------------:|
   | bert-tiny  |  0.1739  |  57.31  |  82.83/73.77  | 64.29 | 65.71/77.47 | 58.84 | 83.03 | 40.85/40.28 | 59.15 | [download](https://drive.google.com/file/d/1RyRXSx_9Rew2BTtUPigPhv3SHhMp6PUa/view?usp=sharing) |
-  | bert-mini  |    -     |    -    |       -       |   -   |      -      |   -   |   -   |      -      |   -   |      -       |
+  | bert-mini  |  0.2697  |  69.06  |  87.92/83.09  | 84.26 | 81.00/85.74 | 62.09 | 87.27 | 84.19/84.44 | 57.75 | [download](https://drive.google.com/file/d/1UJU6vSTPDF67w9ueMfwm4gGUuJl-QYzU/view?usp=sharing) |
 
 # End
 More contents and more scripts will be added.\
