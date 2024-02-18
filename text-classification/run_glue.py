@@ -316,6 +316,7 @@ def main(args):
 
     completed_steps = 0
     starting_epoch = 0
+    best_metric = {}
 
     ## Load weights & states from Checkpoint
     if args.resume_from_checkpoint:
@@ -383,10 +384,24 @@ def main(args):
         eval_metric = metric.compute()
         logger.info(f"epoch {epoch}: {eval_metric}")
 
+        if epoch == 0 or best_metric[list(best_metric.keys())[0]] < eval_metric[list(eval_metric.keys())[0]]:
+            best_metric = eval_metric
+            ## Save Best eval_metric model
+            if args.out_dir is not None:
+                accelerator.wait_for_everyone()
+                unwrapped_model = accelerator.unwrap_model(model)
+                unwrapped_model.save_pretrained(
+                    os.path.join(args.out_dir, args.run_name), is_main_process=accelerator.is_main_process,
+                    save_function=accelerator.save
+                )
+                if accelerator.is_main_process:
+                    tokenizer.save_pretrained(os.path.join(args.out_dir, args.run_name))
+
         if args.with_tracking:
             accelerator.log(
                 {
                     "accuracy" if args.task is not None else "glue": eval_metric,
+                    "best_accuracy" if args.task is not None else "best_glue": best_metric,
                     "train_loss": total_loss.item() / len(train_dataloader),
                     "epoch": epoch,
                     "step": completed_steps,
@@ -400,6 +415,7 @@ def main(args):
                 wandb.log(
                     {
                         "accuracy" if args.task is not None else "glue": eval_metric,
+                        "best_accuracy" if args.task is not None else "glue": best_metric,
                         "train_loss": total_loss.item() / len(train_dataloader),
                         "epoch": epoch,
                         "step": completed_steps,
@@ -413,18 +429,9 @@ def main(args):
                 output_dir = os.path.join(args.out_dir, output_dir)
             accelerator.save_state(output_dir)
 
-            ## Remove the oldest checkpoint if len(checkpoint_files) > num_checkpoint_hist
-
     accelerator.end_training()
 
-    if args.out_dir is not None:
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(
-            os.path.join(args.out_dir, args.run_name), is_main_process=accelerator.is_main_process, save_function=accelerator.save
-        )
-        if accelerator.is_main_process:
-            tokenizer.save_pretrained(os.path.join(args.out_dir, args.run_name))
+    eval_metric = best_metric
 
     if args.task == "mnli":
         eval_dataset = processed_datasets["validation_mismatched"]
@@ -445,9 +452,9 @@ def main(args):
         eval_metric = metric.compute()
         logger.info(f"mnli-mm: {eval_metric}")
 
-    if args.out_dir:
+    if args.out_dir is not None:
         all_results = {f"eval_{k}": v for k, v in eval_metric.items()}
-        with open(os.path.join(args.out_dir, "all_results.json"), "w") as f:
+        with open(os.path.join(args.out_dir, args.run_name, f"results_{args.run_name}.json"), "w") as f:
             json.dump(all_results, f)
 
     if args.log_wandb:
@@ -471,18 +478,16 @@ if __name__ == "__main__":
         project = args.project
         run_name = args.run_name
         for task in args.task_list:
-            args.task = task
-            args.project = f"{project}_{task.upper()}"
-            args.out_dir = os.path.join(out_dir, args.task)
+            if args.task is not None:
+                args.task = task
+                args.project = f"{project}_{args.task.upper()}"
+                args.out_dir = os.path.join(out_dir, args.task)
             for train_bs in args.batch_list:
                 args.train_batch_size = train_bs[0]
                 args.grad_accum_steps = train_bs[1]
                 for lr in args.lr_list:
                     args.lr = lr
-
                     args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
-                    # args.out_dir = os.path.join(out_dir,
-                    #                             f"bs{args.train_batch_size*args.grad_accum_steps}_lr{args.lr}")
                     main(args)
     else:
         main(args)

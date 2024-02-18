@@ -38,6 +38,7 @@ Introduced steps below are about fine-tuning pretrained models on GLUE task.
 
 ### Step 3️⃣ Start train
 ```bash
+CUDA_DEVICE_ORDER='PCI_BUS_ID' \
 CUDA_VISIBLE_DEVICES='0,' \         # no. of GPU to use
 accelerate launch \ 
 run_glue.py \                           # script for run

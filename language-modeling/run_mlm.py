@@ -523,7 +523,7 @@ def main(model_config, args):
         )
         if accelerator.is_main_process:
             tokenizer.save_pretrained(os.path.join(args.out_dir, args.run_name))
-            with open(os.path.join(args.out_dir, "all_results.json"), "w") as f:
+            with open(os.path.join(args.out_dir, f"all_results_{args.run_name}.json"), "w") as f:
                 json.dump({"perplexity": perplexity}, f)
 
     if args.log_wandb:

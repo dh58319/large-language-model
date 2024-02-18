@@ -44,6 +44,7 @@ def set_config(args):
 ### Step 4️⃣ Start train
 ```bash
 # *** for example *** #
+CUDA_DEVICE_ORDER='PCI_BUS_ID' \
 CUDA_VISIBLE_DEVICES='0,' \         # no. of GPU to use
 accelerate launch \ 
 run_mlm.py \                            # script for run
