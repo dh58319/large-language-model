@@ -25,7 +25,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
 
 ## Model Zoo
 ### Pretrain
-- Wikipedia
+##### - Wikipedia - 
   - epoch : 40
 
   |    Model    |  L/H  | perplexity | eval_loss |                                              model                                             | 
@@ -34,7 +34,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
   |  bert-mini  | 4/256 |   8.057    |   2.087   | [download](https://drive.google.com/file/d/1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ/view?usp=sharing) |
 
 ### Fine-tune
-- GLUE
+##### - GLUE -
   - with Pretrained model from above 'Pretrain' table
   - Batch size : 8, 16, 32, 64, 128
   - Learning rate : 1e-4, 3e-4, 3e-5, 5e-5
