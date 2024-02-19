@@ -28,10 +28,10 @@ Before training LLM, I recommend you to read the paper about the target model fi
 - Wikipedia
   - epoch : 40
 
-|    Model    |  L/H  | perplexity | eval_loss |                                              model                                             | 
-|:-----------:|:-----:|:----------:|:---------:|:----------------------------------------------------------------------------------------------:|
-|  bert-tiny  | 2/128 |   26.211   |   3.266   | [download](https://drive.google.com/file/d/1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y/view?usp=sharing) |
-|  bert-mini  | 4/256 |   8.057    |   2.087   | [download](https://drive.google.com/file/d/1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ/view?usp=sharing) |
+  |    Model    |  L/H  | perplexity | eval_loss |                                              model                                             | 
+  |:-----------:|:-----:|:----------:|:---------:|:----------------------------------------------------------------------------------------------:|
+  |  bert-tiny  | 2/128 |   26.211   |   3.266   | [download](https://drive.google.com/file/d/1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y/view?usp=sharing) |
+  |  bert-mini  | 4/256 |   8.057    |   2.087   | [download](https://drive.google.com/file/d/1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ/view?usp=sharing) |
 
 ### Fine-tune
 - GLUE
@@ -40,10 +40,10 @@ Before training LLM, I recommend you to read the paper about the target model fi
   - Learning rate : 1e-4, 3e-4, 3e-5, 5e-5
   - epoch : 4
 
-  |   Model    |   CoLA   |  MNLI   |     MRPC      | QNLI  |     QQP     |  RTE  | SST-2 |    STS-B    | WNLI  |     model    |
-  |:----------:|:--------:|:-------:|:-------------:|:-----:|:-----------:|:-----:|:-----:|:-----------:|:-----:|:------------:|
-  | bert-tiny  |  0.1739  |  57.31  |  82.83/73.77  | 64.29 | 65.71/77.47 | 58.84 | 83.03 | 40.85/40.28 | 59.15 | [download](https://drive.google.com/file/d/1RyRXSx_9Rew2BTtUPigPhv3SHhMp6PUa/view?usp=sharing) |
-  | bert-mini  |  0.2697  |  69.06  |  87.92/83.09  | 84.26 | 81.00/85.74 | 62.09 | 87.27 | 84.19/84.44 | 57.75 | [download](https://drive.google.com/file/d/1UJU6vSTPDF67w9ueMfwm4gGUuJl-QYzU/view?usp=sharing) |
+  |   Model    | CoLA  |  SST-2  |     MRPC      |     QQP     |    STS-B    | MNLI  | QNLI  | WNLI  |  RTE  |                                            model                                               |
+  |:----------:|:-----:|:-------:|:-------------:|:-----------:|:-----------:|:-----:|:-----:|:-----:|:-----:|:----------------------------------------------------------------------------------------------:|
+  | bert-tiny  | 17.39 |  83.03  |  82.83/73.77  | 65.71/77.47 | 40.85/40.28 | 57.31 | 64.29 | 59.15 | 58.84 | [download](https://drive.google.com/file/d/1RyRXSx_9Rew2BTtUPigPhv3SHhMp6PUa/view?usp=sharing) |
+  | bert-mini  | 26.97 |  87.27  |  87.92/83.09  | 81.00/85.74 | 84.19/84.44 | 69.06 | 84.26 | 57.75 | 62.09 | [download](https://drive.google.com/file/d/1UJU6vSTPDF67w9ueMfwm4gGUuJl-QYzU/view?usp=sharing) |
 
 # End
 More contents and more scripts will be added.\
