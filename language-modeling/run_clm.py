@@ -1,4 +1,4 @@
-## reference : https://github.com/huggingface/transformers/blob/main/examples/pytorch/language-modeling/run_mlm_no_trainer.py
+# reference : https://github.com/huggingface/transformers/blob/main/examples/pytorch/language-modeling/run_clm_no_trainer.py
 
 import argparse
 import json
@@ -19,7 +19,7 @@ from transformers import (
     AutoConfig,
     AutoModelForMaskedLM,
     AutoTokenizer,
-    DataCollatorForLanguageModeling,
+    default_data_collator,
     get_scheduler,
 )
 from transformers.utils import check_min_version
@@ -27,30 +27,13 @@ from transformers.utils.versions import require_version
 
 from utils import init_accelerator, make_log, load_checkpoint
 
-## import model & model configuration
-from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
-from transformers.models.bert.configuration_bert import BertConfig
-
-BERT_cfg = {
-    ## prajjwal1/bert-##
-    "prajjwal1/bert-tiny"  : [128, 2],
-    "prajjwal1/bert-mini"  : [256, 4],
-    "prajjwal1/bert-small" : [512, 4],
-    "prajjwal1/bert-medium": [512, 8],
-}
-
-def set_config(args):
-    return BertConfig(hidden_size=BERT_cfg[args.tokenizer][0], num_hidden_layers=BERT_cfg[args.tokenizer][1],
-                      num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob,
-                      intermediate_size=512)
-
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
 
 logger = get_logger(__name__)
 require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
 
-parser = argparse.ArgumentParser(description="Pretraining on Masked Language Modeling task - Pytorch Large Language Model")
+parser = argparse.ArgumentParser(description="Pretraining on Causal Language Modeling task - Pytorch Large Language Model")
 
 group = parser.add_argument_group('Dataset')
 group.add_argument('--dataset', type=str, help="The name of the dataset")
@@ -64,15 +47,13 @@ group.add_argument('--valid_file', type=str,
                    help="A file contains the validation data -> extension : .csv, .json, .txt")
 group.add_argument('--valid_split_percentage', type=int, default=5,
                    help="Percentage of Train set used as Valid set if there is no Valid split")
-group.add_argument('--pad_to_max_length', action='store_true', default=False,                  ### MLM ###
-                   help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used")
-group.add_argument('--max_seq_length', type=int, default=None,                                 ### MLM ###
+group.add_argument('--block_size', type=int, default=None,                            ### CLM ###
                    help=(
-                       "Maximum total input sequence length after tokenization."
-                       "Sequences longer than this value will be truncated."
-                   ))
-group.add_argument('--line_by_line', action='store_true', default=False,                        ### MLM ###
-                   help="Distinguish lines of text in Dataset -> Distinct Sequences")
+                       "Optional input sequence length after tokenization."
+                       "Train dataset will be truncated in block of this size."
+                       "Default : model max input length for single sentence inputs"
+                   ))                                                                 ### CLM ###
+group.add_argument('--no_keep_linebreaks', action="store_true", help="Do not keep line breaks when using TXT files")
 
 group = parser.add_argument_group('Model')
 group.add_argument('--model', type=str, required=False,
@@ -87,7 +68,6 @@ group.add_argument('--train_batch_size', type=int, default=16,
                    help="Batch size for Training dataloader (per device)")
 group.add_argument('--eval_batch_size', type=int, default=16,
                    help="Batch size for evaluation dataloader (per device)")
-group.add_argument('--mlm_probability', type=float, default=0.15, help="Probability of masked tokens for MLM")      ### MLM ###
 group.add_argument('--lr', type=float, default=5e-5, help="Learning rate")
 group.add_argument('--weight_decay', type=float, default=0.0, help="Weight decay")
 group.add_argument('--train_epoch', type=int, default=3, help="Total number of Training epochs")
@@ -98,7 +78,6 @@ group.add_argument('--grad_accum_steps', type=int, default=1,
 group.add_argument('--sche', type=str, default="linear",
                    help="LR Scheduler : 'linear', 'cosine', cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'")
 group.add_argument('--num_warmup_steps', type=int, default=0, help="Number of Warmup step in LR scheduler")
-group.add_argument('--drop_prob', type=float, default=0.0, help="Dropout Probability")              ### MLM ###
 
 group = parser.add_argument_group('Setting')
 group.add_argument('--log_wandb', action='store_true', default=False,
@@ -135,7 +114,7 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
                         "If passed, LLM loading time and RAM comsumption will be benefited"
                     ))
 
-def main(model_config, args):
+def main(args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
 
@@ -213,6 +192,7 @@ def main(model_config, args):
         )
     else:
         ## Train from Scratch -> Load Model
+        # model = AutoModelForCausalLM.from_config(config, trust_remote_code=args.trust_remote_code)
         model = scratch_model(config)
         logger.info("Training new model from Scratch")
 
@@ -222,116 +202,80 @@ def main(model_config, args):
     if len(tokenizer) > embedding_size:
         model.resize_token_embeddings(len(tokenizer))
 
-    ## Preprocess Dataset
+    ## Preprocess Dataset                                               #### CLM != MLM ####
     ## Tokenize all the texts
     column_names = raw_datasets["train"].column_names
     text_column_name = "text" if "text" in column_names else column_names[0]
 
-    if args.max_seq_length is None:
-        max_seq_length = tokenizer.model_max_length
-        if max_seq_length > 1024:
+    def tokenize_function(examples):
+        return tokenizer(examples[text_column_name])
+
+    with accelerator.main_process_first():
+        if not args.streaming:
+            tokenized_datasets = raw_datasets.map(
+                tokenize_function,
+                batched=True,
+                num_proc=args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not args.overwrite_cache,
+                desc="Running tokenizer on dataset line_by_line",
+            )
+        else:
+            tokenized_datasets = raw_datasets.map(
+                tokenize_function,
+                batched=True,
+                remove_columns=[text_column_name],
+            )
+
+    #### CLM != MLM ####
+    if args.block_size is None:
+        block_size = tokenizer.model_max_length
+        if block_size > config.max_position_embeddings:
             logger.warning(
-                "The chosen tokenizer supports a 'model_max_length' that is longer than the default 'block_size' value (1024)"
+                f"The tokenizer picked seems to have a very large `model_max_length` ({tokenizer.model_max_length}). "
+                f"Using block_size={min(1024, config.max_position_embeddings)} instead. You can change that default value by passing --block_size xxx."
             )
-            max_seq_length = 1024
+            block_size = min(1024, config.max_position_embeddings)
     else:
-        if args.max_seq_length > tokenizer.model_max_length:
+        if args.block_size > tokenizer.model_max_length:
             logger.warning(
-                f"The max_seq_length ({args.max_seq_length}) is larger than the maximum length for"
-                f"the model ({tokenizer.model_max_length}). Using max_seq_length={tokenizer.model_max_length}."
+                f"The block_size passed ({args.block_size}) is larger than the maximum length for the model "
+                f"({tokenizer.model_max_length}). Using block_size={tokenizer.model_max_length}."
             )
-        max_seq_length = min(args.max_seq_length, tokenizer.model_max_length)
+        block_size = min(args.block_size, tokenizer.model_max_length)
 
-    if args.line_by_line:
-        ## Tokenize each non-empty line
-        padding = "max_length" if args.pad_to_max_length else False
+    def group_texts(examples):
+        ## Concatenate all texts
+        concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
+        total_length = len(concatenated_examples[list(examples.keys())[0]])
+        total_length = (total_length // block_size) * block_size
+        ## Split by chunks of max_len
+        result = {
+            k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
+            for k, t in concatenated_examples.items()
+        }
+        result["labels"] = result["input_ids "].copy()                       #### CLM != MLM ####
+        return result
 
-        def tokenize_function(examples):
-            ## Remove empty line
-            examples[text_column_name] = [
-                line for line in examples[text_column_name] if len(line) > 0 and not line.isspace()
-            ]
-            return tokenizer(
-                examples[text_column_name],
-                padding=padding,
-                truncation=True,
-                max_length=max_seq_length,
-                return_special_tokens_mask=True,  # with 'special_tokens_mask', DataCollatorForLanguageModeling is more efficient
+    with accelerator.main_process_first():
+        if not args.streaming:
+            tokenized_datasets = tokenized_datasets.map(
+                group_texts,
+                batched=True,
+                num_proc=args.preprocess_num_worker,
+                load_from_cache_file=not args.overwrite_cache,
+                desc=f"Grouping texts in chunks of {block_size}",            #### CLM != MLM ####
             )
-
-        with accelerator.main_process_first():
-            if not args.streaming:
-                tokenized_datasets = raw_datasets.map(
-                    tokenize_function,
-                    batched=True,
-                    num_proc=args.preprocess_num_worker,
-                    remove_columns=column_names,
-                    load_from_cache_file=not args.overwrite_cache,
-                    desc="Running tokenizer on dataset line_by_line",
-                )
-            else:
-                tokenized_datasets = raw_datasets.map(
-                    tokenize_function,
-                    batched=True,
-                    remove_columns=[text_column_name],
-                )
-    else:
-        ## Tokenize every text -> Concatenate together before splitting them in smaller parts
-        def tokenize_function(examples):
-            return tokenizer(
-                examples[text_column_name],
-                return_special_tokens_mask=True,  # with 'special_tokens_mask', DataCollatorForLanguageModeling is more efficient
+        else:
+            tokenized_datasets = tokenized_datasets.map(
+                group_texts,
+                batched=True,
             )
-
-        with accelerator.main_process_first():
-            if not args.streaming:
-                tokenized_datasets = raw_datasets.map(
-                    tokenize_function,
-                    batched=True,
-                    num_proc=args.preprocess_num_worker,
-                    remove_columns=column_names,
-                    load_from_cache_file=not args.overwrite_cache,
-                    desc="Running tokenizer on every text in dataset",
-                )
-            else:
-                tokenized_datasets = raw_datasets.map(
-                    tokenize_function,
-                    batched=True,
-                    remove_columns=column_names,
-                )
-
-        def group_texts(examples):
-            ## Concatenate all texts
-            concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
-            total_length = len(concatenated_examples[list(examples.keys())[0]])
-            total_length = (total_length // max_seq_length) * max_seq_length
-            ## Split by chunks of max_len
-            result = {
-                k: [t[i: i + max_seq_length] for i in range(0, total_length, max_seq_length)]
-                for k, t in concatenated_examples.items()
-            }
-            return result
-
-        with accelerator.main_process_first():
-            if not args.streaming:
-                tokenized_datasets = tokenized_datasets.map(
-                    group_texts,
-                    batched=True,
-                    num_proc=args.preprocess_num_worker,
-                    load_from_cache_file=not args.overwrite_cache,
-                    desc=f"Grouping texts in chunks of {max_seq_length}",
-                )
-            else:
-                tokenized_datasets = tokenized_datasets.map(
-                    group_texts,
-                    batched=True,
-                )
 
     train_dataset = tokenized_datasets["train"]
     eval_dataset = tokenized_datasets["validation"]
 
-    ## Data Collator -> take care of randomly masking the tokens
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=args.mlm_probability)
+    data_collator = default_data_collator                                    #### CLM != MLM ####
 
     ## DataLoaders creation
     train_dataloader = DataLoader(
@@ -343,7 +287,7 @@ def main(model_config, args):
 
     ## Optimizer
     ## Split weights in 2 Groups : i) with weight decay, ii) without weight decay
-    no_decay = ["bias", "LayerNorm.weight"]
+    no_decay = ["bias", "layer_norm.weight"]                                   #### CLM != MLM ####
     optimizer_grouped_parameters = [
         {
             "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -354,7 +298,7 @@ def main(model_config, args):
             "weight_decay": 0.0,
         }
     ]
-    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr, betas=(0.9, 0.999))
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr)     #### CLM != MLM ####
 
     ## Calculate the number of Train steps
     overrode_max_train_steps = False
@@ -363,12 +307,18 @@ def main(model_config, args):
         args.max_train_steps = args.train_epoch * num_update_steps_per_epoch
         overrode_max_train_steps = True
 
+    ############# for check #############
+    print(f"num_processes: {accelerator.num_processes}")
+    print(f"grad_accum_steps: {args.grad_accum_steps}")
+
     ## Scheduler
     lr_scheduler = get_scheduler(
-        name=args.sche,
+        name=args.lr_scheduler_type,
         optimizer=optimizer,
-        num_warmup_steps=args.num_warmup_steps * args.grad_accum_steps,
-        num_training_steps=args.max_train_steps * args.grad_accum_steps,
+        num_warmup_steps=args.num_warmup_steps * accelerator.num_processes,     #### CLM != MLM ####
+        num_training_steps=args.max_train_steps                                 #### CLM != MLM ####
+        if overrode_max_train_steps
+        else args.max_train_steps * accelerator.num_processes,
     )
 
     ## Prepare with Accelerator
@@ -496,6 +446,7 @@ def main(model_config, args):
 
         ## Remove the oldest checkpoint if len(checkpoint_files) > num_checkpoint_hist
 
+
     accelerator.end_training()
 
     if args.out_dir is not None:
@@ -514,5 +465,4 @@ def main(model_config, args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    model_config = set_config(args)
     main(model_config, args)

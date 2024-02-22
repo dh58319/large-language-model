@@ -11,8 +11,6 @@ import transformers
 def init_accelerator(args):
     ## Initialize the accelerator
     accelerate_log_kwargs = {}
-    if args.with_tracking:
-        accelerate_log_kwargs["output_dir"] = args.out_dir
     kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=18000))
     accelerator = Accelerator(gradient_accumulation_steps=args.grad_accum_steps, kwargs_handlers=[kwargs], **accelerate_log_kwargs)
     return accelerator
