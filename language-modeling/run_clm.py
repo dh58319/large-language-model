@@ -27,6 +27,21 @@ from transformers.utils.versions import require_version
 
 from utils import init_accelerator, make_log, load_checkpoint
 
+## import model & model configuration
+from transformers.models.gpt2.modeling_gpt2 import GPT2LMHeadModel as scratch_model
+from transformers.models.gpt2.configuration_gpt2 import GPT2Config
+
+GPT2_cfg = {
+    #                      [n_embd, n_layer]          papers / hfhub
+    "openai-community/gpt2" : [768, 12],            #  117M  /  124M
+    "openai-community/gpt2-medium" : [1024, 24],    #  345M  /  355M
+    "openai-community/gpt2-large" : [1280, 36],     #  762M  /  774M
+    "openai-community/gpt2-xl" : [1600, 48],        #  1542M /  1.5B
+}
+
+def set_config(args):
+    return GPT2Config(n_embd=GPT2_cfg[args.tokenizer][0], n_layer=GPT2_cfg[args.tokenizer][1])
+
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
 
@@ -465,4 +480,5 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    model_config = set_config(args)
     main(model_config, args)

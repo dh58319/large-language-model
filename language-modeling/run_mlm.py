@@ -32,7 +32,7 @@ from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_mo
 from transformers.models.bert.configuration_bert import BertConfig
 
 BERT_cfg = {
-    ## prajjwal1/bert-##
+    # prajjwal1/bert-     [n_embd, n_layer]
     "prajjwal1/bert-tiny"  : [128, 2],
     "prajjwal1/bert-mini"  : [256, 4],
     "prajjwal1/bert-small" : [512, 4],
@@ -185,7 +185,7 @@ def main(model_config, args):
     elif args.model:
         config = AutoConfig.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
     else:
-        ## Train from Scratch -> Load Configuration
+        ## Train from Scratch -> Load Configuration you set
         config = model_config
         logger.warning("You are instantiating a new config instance from Scratch")
 
