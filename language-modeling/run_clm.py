@@ -11,13 +11,12 @@ import torch
 
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
-from datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from transformers import (
     AutoConfig,
-    AutoModelForMaskedLM,
+    AutoModelForCausalLM,
     AutoTokenizer,
     default_data_collator,
     get_scheduler,
@@ -25,7 +24,7 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-from utils import init_accelerator, make_log, load_checkpoint
+from utils import sanity_check, init_accelerator, make_log, load_checkpoint_utils, load_dataset_utils
 
 ## import model & model configuration
 from transformers.models.gpt2.modeling_gpt2 import GPT2LMHeadModel as scratch_model
@@ -129,9 +128,10 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
                         "If passed, LLM loading time and RAM comsumption will be benefited"
                     ))
 
-def main(args):
+def main(model_config, args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
+    sanity_check(logger, args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
@@ -150,27 +150,8 @@ def main(args):
             os.makedirs(args.out_dir, exist_ok=True)
     accelerator.wait_for_everyone()
 
-    ## Get Dataset
-    ## public datasets are available on the hub - https://huggingface.co/datasets/
-    raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir,
-                                streaming=args.streaming, trust_remote_code=True)
-    if "validation" not in raw_datasets.keys():
-        raw_datasets["validation"] = load_dataset(
-            args.dataset,
-            args.dataset_config,
-            cache_dir=args.data_dir,
-            split=f"train[:{args.valid_split_percentage}%]",
-            streaming=args.streaming,
-            trust_remote_code=True
-        )
-        raw_datasets["train"] = load_dataset(
-            args.dataset,
-            args.dataset_config,
-            cache_dir=args.data_dir,
-            split=f"train[{args.valid_split_percentage}%:]",
-            streaming=args.streaming,
-            trust_remote_code=True
-        )
+    ## Load Dataset
+    raw_datasets = load_dataset_utils(args)
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -199,7 +180,7 @@ def main(args):
         )
 
     if args.model:
-        model = AutoModelForMaskedLM.from_pretrained(
+        model = AutoModelForCausalLM.from_pretrained(
             args.model,
             config=config,
             low_cpu_mem_usage=args.low_cpu_mem_usage,
@@ -207,7 +188,6 @@ def main(args):
         )
     else:
         ## Train from Scratch -> Load Model
-        # model = AutoModelForCausalLM.from_config(config, trust_remote_code=args.trust_remote_code)
         model = scratch_model(config)
         logger.info("Training new model from Scratch")
 
@@ -373,7 +353,7 @@ def main(args):
     ## Load weights & states from Checkpoint
     if args.resume_from_checkpoint:
         resume_step, completed_steps, starting_epoch =\
-            load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
+            load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_per_epoch)
 
     ## Train loop
     for epoch in range(starting_epoch, args.train_epoch):

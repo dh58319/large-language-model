@@ -11,7 +11,6 @@ import torch
 
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
-from datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -25,7 +24,7 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-from utils import init_accelerator, make_log, load_checkpoint
+from utils import sanity_check, init_accelerator, make_log, load_dataset, load_checkpoint
 
 ## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
@@ -156,27 +155,8 @@ def main(model_config, args):
             os.makedirs(args.out_dir, exist_ok=True)
     accelerator.wait_for_everyone()
 
-    ## Get Dataset
-    ## public datasets are available on the hub - https://huggingface.co/datasets/
-    raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir,
-                                streaming=args.streaming, trust_remote_code=True)
-    if "validation" not in raw_datasets.keys():
-        raw_datasets["validation"] = load_dataset(
-            args.dataset,
-            args.dataset_config,
-            cache_dir=args.data_dir,
-            split=f"train[:{args.valid_split_percentage}%]",
-            streaming=args.streaming,
-            trust_remote_code=True
-        )
-        raw_datasets["train"] = load_dataset(
-            args.dataset,
-            args.dataset_config,
-            cache_dir=args.data_dir,
-            split=f"train[{args.valid_split_percentage}%:]",
-            streaming=args.streaming,
-            trust_remote_code=True
-        )
+    ## Load Dataset
+    raw_datasets = load_dataset(args)
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -515,4 +495,5 @@ def main(model_config, args):
 if __name__ == "__main__":
     args = parser.parse_args()
     model_config = set_config(args)
+    sanity_check(logger, args)
     main(model_config, args)
