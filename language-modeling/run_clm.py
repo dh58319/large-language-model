@@ -152,6 +152,7 @@ def main(model_config, args):
 
     ## Load Dataset
     raw_datasets = load_dataset_utils(args)
+    print(f"raw_datasets : {raw_datasets}")
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
