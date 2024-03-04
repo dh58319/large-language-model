@@ -24,7 +24,7 @@ from transformers import (
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-from utils import sanity_check, init_accelerator, make_log, load_dataset, load_checkpoint
+from utils import sanity_check, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
 ## import model & model configuration
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
@@ -137,6 +137,7 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
 def main(model_config, args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
+    sanity_check(accelerator, args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
@@ -156,7 +157,7 @@ def main(model_config, args):
     accelerator.wait_for_everyone()
 
     ## Load Dataset
-    raw_datasets = load_dataset(args)
+    raw_datasets = load_dataset_utils(args)
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -388,7 +389,7 @@ def main(model_config, args):
     ## Load weights & states from Checkpoint
     if args.resume_from_checkpoint:
         resume_step, completed_steps, starting_epoch =\
-            load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
+            load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_per_epoch)
 
     ## Train loop
     for epoch in range(starting_epoch, args.train_epoch):
@@ -495,5 +496,4 @@ def main(model_config, args):
 if __name__ == "__main__":
     args = parser.parse_args()
     model_config = set_config(args)
-    sanity_check(logger, args)
     main(model_config, args)

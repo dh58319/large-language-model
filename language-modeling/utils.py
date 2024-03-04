@@ -9,27 +9,57 @@ from accelerate.utils import InitProcessGroupKwargs
 
 import transformers
 
-def sanity_check(logger, args):
-    if args.dataset is None and args.train_file is None and args.valid_file is None:
+def jsonl_to_json(jsonl_file_path):
+    import json
+    import jsonlines
+
+    json_file_path = str(jsonl_file_path.rsplit('.', 1)[0]) + '.json'
+    if os.path.exists(json_file_path):
+        return json_file_path, "json"
+
+    json_file = {}
+    with jsonlines.open(jsonl_file_path) as f:
+        for line_idx, line in enumerate(f):
+            key_list = list(line.keys())
+            value_list = list(line.values())
+            for idx, key in enumerate(key_list):
+                if line_idx == 0:
+                    json_file[key] = []
+                json_file[key].append(value_list[idx])
+
+    with open(json_file_path, "w", encoding="utf-8") as f:
+        json.dump(json_file, f)
+
+    return json_file_path, "json"
+
+def sanity_check(accelerator, args):
+    if args.dataset is None and\
+            args.train_file is None and args.valid_file is None:
         raise ValueError("Need either 'args.dataset' or 'args.train_file' or 'args.valid_file'.")
 
     if args.dataset is not None and args.data_dir is None:
-        logger.warning(
-            "Load dataset from initial cache dir or download from huggingface hub."
-            "Need 'args.data_dir' to load stored dataset."
-        )
+        with accelerator.main_process_first():
+            print(
+                "Load dataset from initial cache dir or download from huggingface hub."
+                "Need 'args.data_dir' to load stored dataset."
+            )
     else:
-        logger.warning(
-            "Load stored dataset(args.train_file, args.valid_file)."
-        )
+        with accelerator.main_process_first():
+            print(
+                "Load stored dataset(args.train_file, args.valid_file)."
+            )
         if args.train_file:
             extension = args.train_file.split(".")[-1]
             if extension not in ["csv", "json", "txt", "jsonl"]:
                 raise ValueError("'args.train_file' should be a csv, json(l) or txt file.")
+            # if extension == "jsonl":
+            #     args.train_file, extension = jsonl_to_json(args.train_file)
         if args.valid_file:
             extension = args.valid_file.split(".")[-1]
             if extension not in ["csv", "json", "txt", "jsonl"]:
                 raise ValueError("'args.valid_file' should be a csv, json(l) or txt file.")
+            # if extension == "jsonl":
+            #     args.valid_file, extension = jsonl_to_json(args.valid_file)
 def init_accelerator(args):
     ## Initialize the accelerator
     accelerate_log_kwargs = {}
@@ -81,15 +111,17 @@ def load_dataset_utils(args):
             data_files["train"] = args.train_file
             extension = args.train_file.split(".")[-1]
         if args.valid_file:
-            data_files["valid"] = args.valid_file
+            data_files["validation"] = args.valid_file
             extension = args.valid_file.split(".")[-1]
         if extension == "txt":
             extension = "text"
             dataset_args["keep_linebreaks"] = not args.no_keep_linebreaks
+        if extension == "jsonl":
+            extension = "json"
         raw_datasets = load_dataset(extension, data_files=data_files, **dataset_args)
 
         if "validation" not in raw_datasets.keys():
-            # No 'args.valid_file', use 'args.valid_split_percentage' to divide the dataset
+            # No 'args.valid_file' -> use 'args.valid_split_percentage' to divide the dataset
             raw_datasets["validation"] = load_dataset(
                 extension,
                 data_files=data_files,
@@ -128,3 +160,6 @@ def load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_
 
     return resume_step, completed_steps, starting_epoch
 
+if __name__ == "__main__":
+    file_path = '/home/edg1113/private/PycharmProject/LargeLanguageModel/dataset/data/small-117M.valid.jsonl'
+    json_file, extension = jsonl_to_json(file_path)

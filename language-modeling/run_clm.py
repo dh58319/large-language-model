@@ -131,7 +131,7 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
 def main(model_config, args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
-    sanity_check(logger, args)
+    sanity_check(accelerator, args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
@@ -152,7 +152,6 @@ def main(model_config, args):
 
     ## Load Dataset
     raw_datasets = load_dataset_utils(args)
-    print(f"raw_datasets : {raw_datasets}")
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -211,7 +210,7 @@ def main(model_config, args):
             tokenized_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
-                num_proc=args.preprocessing_num_workers,
+                num_proc=args.preprocess_num_worker,
                 remove_columns=column_names,
                 load_from_cache_file=not args.overwrite_cache,
                 desc="Running tokenizer on dataset line_by_line",
@@ -250,7 +249,7 @@ def main(model_config, args):
             k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
             for k, t in concatenated_examples.items()
         }
-        result["labels"] = result["input_ids "].copy()                       #### CLM != MLM ####
+        result["labels"] = result["input_ids"].copy()                       #### CLM != MLM ####
         return result
 
     with accelerator.main_process_first():
@@ -309,7 +308,7 @@ def main(model_config, args):
 
     ## Scheduler
     lr_scheduler = get_scheduler(
-        name=args.lr_scheduler_type,
+        name=args.sche,
         optimizer=optimizer,
         num_warmup_steps=args.num_warmup_steps * accelerator.num_processes,     #### CLM != MLM ####
         num_training_steps=args.max_train_steps                                 #### CLM != MLM ####
