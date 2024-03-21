@@ -4,22 +4,23 @@ First of all, all script is referred to [🤗Huggingface.transformers](https://g
 Before training LLM, I recommend you to read the paper about the target model first.
 
 ## Model Architecture List
-|                                                     Model                                                      |                       Huggingface-Hub URL                       | Model Dir | 
-|:--------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------:|:---------:|
-|                                 [BERT](https://arxiv.org/pdf/1810.04805v2.pdf)                                 | [link](https://huggingface.co/models?sort=trending&search=bert) |     -     |
-| [GPT-2](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) | [link](https://huggingface.co/models?sort=trending&search=gpt2) |     -     |
-|                                  [T5](https://arxiv.org/pdf/1910.10683v4.pdf)                                  |  [link](https://huggingface.co/models?sort=trending&search=t5)  |     -     | 
-|                               [RoBERTa](https://arxiv.org/pdf/1907.11692v1.pdf)                                |                                -                                |     -     |
-|                              [DistilBERT](https://arxiv.org/pdf/1910.01108v4.pdf)                              |                                -                                |     -     |
+|                                                     Model                                                     |                     Huggingface-Hub URL                     | Model Dir | 
+|:-------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------:|:---------:|
+|                                [BERT](https://arxiv.org/pdf/1810.04805v2.pdf)                                 |   https://huggingface.co/models?sort=trending&search=bert   |     -     |
+| [GPT2](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) |   https://huggingface.co/models?sort=trending&search=gpt2   |     -     |
+|                                 [T5](https://arxiv.org/pdf/1910.10683v4.pdf)                                  |    https://huggingface.co/models?sort=trending&search=t5    |     -     | 
+|                               [RoBERTa](https://arxiv.org/pdf/1907.11692v1.pdf)                               |                              -                              |     -     |
+|                             [DistilBERT](https://arxiv.org/pdf/1910.01108v4.pdf)                              |                              -                              |     -     |
 
 
 
 ## Dataset List
 ### for Pretrain
-|    Data     |             Huggingface-Hub URL             |                      Data Dir                      |
-|:-----------:|:-------------------------------------------:|:--------------------------------------------------:|
-|  Wikipedia  |  https://huggingface.co/datasets/wikipedia  |  ~/shared/hdd_ext/nvme1/public/language/wikipedia  |
-|  Wikitext   |  https://huggingface.co/datasets/wikitext   |  ~/shared/hdd_ext/nvme1/public/language/wikitext   |
+|    Data     |                 Reference URL                  |                     Data Dir                     |
+|:-----------:|:----------------------------------------------:|:------------------------------------------------:|
+|  Wikipedia  |   https://huggingface.co/datasets/wikipedia    | ~/shared/hdd_ext/nvme1/public/language/wikipedia |
+|  Wikitext   |    https://huggingface.co/datasets/wikitext    | ~/shared/hdd_ext/nvme1/public/language/wikitext  |
+| OpenAI-GPT2 | https://github.com/openai/gpt-2-output-dataset |                        -                         |
 ### for Fine-tune
 | Data | Data Dir                                    |
 |------|---------------------------------------------|
@@ -30,13 +31,19 @@ Before training LLM, I recommend you to read the paper about the target model fi
 ##### - Wikipedia - 
   - epoch : 40
 
-  |                          Model                          |  L/H  | perplexity | eval_loss |                                             cfg                                              | 
-  |:-------------------------------------------------------:|:-----:|:----------:|:---------:|:--------------------------------------------------------------------------------------------:|
-  | [bert-tiny](https://huggingface.co/prajjwal1/bert-tiny) | 2/128 |   26.211   |   3.266   | [download](https://drive.google.com/uc?export=download&id=1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y) |
-  | [bert-mini](https://huggingface.co/prajjwal1/bert-mini) | 4/256 |   8.057    |   2.087   | [download](https://drive.google.com/uc?export=download&id=1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ) |
-##### - WebText -
-  - epoch :
-  
+  |                          Model                          | Size | perplexity | eval_loss |                                             cfg                                              | 
+  |:-------------------------------------------------------:|:----:|:----------:|:---------:|:--------------------------------------------------------------------------------------------:|
+  | [bert-tiny](https://huggingface.co/prajjwal1/bert-tiny) |  4M  |   26.211   |   3.266   | [download](https://drive.google.com/uc?export=download&id=1R7VYGkFPa41dMzbnEla1TJWBFrYnAU-Y) |
+  | [bert-mini](https://huggingface.co/prajjwal1/bert-mini) | 11M  |   8.057    |   2.087   | [download](https://drive.google.com/uc?export=download&id=1S9GuJG7IPI0ogmXhmbkFqJ8cdFCsY_pJ) |
+
+##### - OpenAI-GPT2 -
+  - This dataset is the alternative of WebText which is referred in the [paper](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf).
+  - OpenAI released this dataset for researchers. WebText is not released.
+  - epoch : 40
+
+|                        Model                         | Size | perplexity | eval_loss |                                             cfg                                              | 
+|:----------------------------------------------------:|:----:|:----------:|:---------:|:--------------------------------------------------------------------------------------------:|
+| [GPT2](https://huggingface.co/openai-community/gpt2) | 137M |  127.966   |   4.852   | [download](https://drive.google.com/uc?export=download&id=1UaK4CUaBhxbOwI_2ZlTTx6_Lzhp3Puia) |
 
 ### Fine-tune
 ##### - GLUE -

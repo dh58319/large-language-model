@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import logging
 import math
 import os
 import wandb
@@ -30,6 +29,8 @@ from utils import sanity_check, init_accelerator, make_log, load_dataset_utils, 
 from transformers.models.bert.modeling_bert import BertForMaskedLM as scratch_model
 from transformers.models.bert.configuration_bert import BertConfig
 
+# from model.bert import BERT as scratch_model
+
 BERT_cfg = {
     # prajjwal1/bert-     [n_embd, n_layer]
     "prajjwal1/bert-tiny"  : [128, 2],
@@ -52,17 +53,20 @@ require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/lang
 parser = argparse.ArgumentParser(description="Pretraining on Masked Language Modeling task - Pytorch Large Language Model")
 
 group = parser.add_argument_group('Dataset')
+## Download or Stream dataset from Huggingface hub
 group.add_argument('--dataset', type=str, help="The name of the dataset")
 group.add_argument('--dataset_config', type=str, help="The configuration name of the dataset")
-group.add_argument('--data_dir', type=str, default=None, help="Directory of stored Dataset")
+group.add_argument('--cache_dir', type=str, default=None, help="Directory of stored Dataset")
 group.add_argument('-s', '--streaming', action='store_true', default=False,
                    help="Enable streaming mode -> not require local disk usage")
+## Load Stored dataset
 group.add_argument('--train_file', type=str,
-                   help="A file contains the training data -> extension : .csv, .json, .txt")
+                   help="A file contains the training data -> extension : .csv, .json, .txt, .arrow")
 group.add_argument('--valid_file', type=str,
-                   help="A file contains the validation data -> extension : .csv, .json, .txt")
+                   help="A file contains the validation data -> extension : .csv, .json, .txt, .arrow")
 group.add_argument('--valid_split_percentage', type=int, default=5,
                    help="Percentage of Train set used as Valid set if there is no Valid split")
+
 group.add_argument('--pad_to_max_length', action='store_true', default=False,                  ### MLM ###
                    help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used")
 group.add_argument('--max_seq_length', type=int, default=None,                                 ### MLM ###
@@ -137,7 +141,7 @@ parser.add_argument('--low_cpu_mem_usage', action="store_true",
 def main(model_config, args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
-    sanity_check(accelerator, args)
+    # sanity_check(accelerator, args)
 
     if args.log_wandb:
         if accelerator.is_main_process:
@@ -158,6 +162,7 @@ def main(model_config, args):
 
     ## Load Dataset
     raw_datasets = load_dataset_utils(args)
+    print(raw_datasets)
 
     ## Load Pretrained Model & Tokenizer
     if args.config:
@@ -405,6 +410,8 @@ def main(model_config, args):
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
+                if step == 0:                                           ##
+                    print(batch['input_ids'].shape)                                  ##
                 outputs = model(**batch)
                 loss = outputs.loss
                 total_loss += loss.detach().float()

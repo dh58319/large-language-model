@@ -38,28 +38,25 @@ def sanity_check(accelerator, args):
         raise ValueError("Need either 'args.dataset' or 'args.train_file' or 'args.valid_file'.")
 
     if args.dataset is not None and args.data_dir is None:
-        with accelerator.main_process_first():
+        if accelerator.is_main_process:
             print(
                 "Load dataset from initial cache dir or download from huggingface hub."
                 "Need 'args.data_dir' to load stored dataset."
             )
     else:
-        with accelerator.main_process_first():
+        if accelerator.is_main_process:
             print(
                 "Load stored dataset(args.train_file, args.valid_file)."
             )
         if args.train_file:
             extension = args.train_file.split(".")[-1]
-            if extension not in ["csv", "json", "txt", "jsonl"]:
-                raise ValueError("'args.train_file' should be a csv, json(l) or txt file.")
-            # if extension == "jsonl":
-            #     args.train_file, extension = jsonl_to_json(args.train_file)
+            if extension not in ["csv", "json", "txt", "jsonl", "arrow"]:
+                raise ValueError("'args.train_file' should be a csv, json(l), arrow or txt file.")
         if args.valid_file:
             extension = args.valid_file.split(".")[-1]
-            if extension not in ["csv", "json", "txt", "jsonl"]:
-                raise ValueError("'args.valid_file' should be a csv, json(l) or txt file.")
-            # if extension == "jsonl":
-            #     args.valid_file, extension = jsonl_to_json(args.valid_file)
+            if extension not in ["csv", "json", "txt", "jsonl", "arrow"]:
+                raise ValueError("'args.valid_file' should be a csv, json(l), arrow or txt file.")
+
 def init_accelerator(args):
     ## Initialize the accelerator
     accelerate_log_kwargs = {}
@@ -85,13 +82,14 @@ def make_log(logger, accelerator):
 def load_dataset_utils(args):
     ## public datasets are available on the hub - https://huggingface.co/datasets/
     if args.dataset:
-        raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.data_dir,
+        ## Load dataset from Huggingface hub
+        raw_datasets = load_dataset(args.dataset, args.dataset_config, cache_dir=args.cache_dir,
                                     streaming=args.streaming, trust_remote_code=True)
         if "validation" not in raw_datasets.keys():
             raw_datasets["validation"] = load_dataset(
                 args.dataset,
                 args.dataset_config,
-                cache_dir=args.data_dir,
+                cache_dir=args.cache_dir,
                 split=f"train[:{args.valid_split_percentage}%]",
                 streaming=args.streaming,
                 trust_remote_code=True
@@ -99,7 +97,7 @@ def load_dataset_utils(args):
             raw_datasets["train"] = load_dataset(
                 args.dataset,
                 args.dataset_config,
-                cache_dir=args.data_dir,
+                cache_dir=args.cache_dir,
                 split=f"train[{args.valid_split_percentage}%:]",
                 streaming=args.streaming,
                 trust_remote_code=True
@@ -118,6 +116,8 @@ def load_dataset_utils(args):
             dataset_args["keep_linebreaks"] = not args.no_keep_linebreaks
         if extension == "jsonl":
             extension = "json"
+        if extension == "arrow":
+            extension = "arrow"
         raw_datasets = load_dataset(extension, data_files=data_files, **dataset_args)
 
         if "validation" not in raw_datasets.keys():
@@ -125,13 +125,13 @@ def load_dataset_utils(args):
             raw_datasets["validation"] = load_dataset(
                 extension,
                 data_files=data_files,
-                split=f"train[:{args.validation_split_percentage}%]",
+                split=f"train[:{args.valid_split_percentage}%]",
                 **dataset_args,
             )
             raw_datasets["train"] = load_dataset(
                 extension,
                 data_files=data_files,
-                split=f"train[{args.validation_split_percentage}%:]",
+                split=f"train[{args.valid_split_percentage}%:]",
                 **dataset_args,
             )
     return raw_datasets
@@ -161,5 +161,6 @@ def load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_
     return resume_step, completed_steps, starting_epoch
 
 if __name__ == "__main__":
-    file_path = '/home/edg1113/private/PycharmProject/LargeLanguageModel/dataset/data/small-117M.valid.jsonl'
-    json_file, extension = jsonl_to_json(file_path)
+    raw_datasets = load_dataset("arrow", data_files='/home/edg1113/shared/hdd_ext/nvme1/public/language/wikipedia/20220301.en/2.0.0/aa542ed919df55cc5d3347f42dd4521d05ca68751f50dbc32bae2a7f1e167559/wikipedia-train.arrow',
+                                trust_remote_code=True)
+    print(raw_datasets)
