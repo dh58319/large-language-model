@@ -16,11 +16,13 @@ Before training LLM, I recommend you to read the paper about the target model fi
 
 ## Dataset List
 ### for Pretrain
-|    Data     |                 Reference URL                  |                     Data Dir                     |
-|:-----------:|:----------------------------------------------:|:------------------------------------------------:|
-|  Wikipedia  |   https://huggingface.co/datasets/wikipedia    | ~/shared/hdd_ext/nvme1/public/language/wikipedia |
-|  Wikitext   |    https://huggingface.co/datasets/wikitext    | ~/shared/hdd_ext/nvme1/public/language/wikitext  |
-| OpenAI-GPT2 | https://github.com/openai/gpt-2-output-dataset |                        -                         |
+|    Data     |                    Reference URL                     |            ( Raw / Tokenized ) Data Dir             | 
+|:-----------:|:----------------------------------------------------:|:---------------------------------------------------:|
+|  Wikipedia  |      https://huggingface.co/datasets/wikipedia       |   ~/public/language/wikipedia/20220301.en/2.0.0/    |
+|  Wikitext   |       https://huggingface.co/datasets/wikitext       | ~/public/language/wikitext/wikitext-2-raw-v1/0.0.0/ |
+|  MiniPile   | https://huggingface.co/datasets/JeanKaddour/minipile |   ~/public/language/minipile/default/0.0.0/         |
+| OpenAI-GPT2 |    https://github.com/openai/gpt-2-output-dataset    |                          -                          |
+
 ### for Fine-tune
 | Data | Data Dir                                    |
 |------|---------------------------------------------|
@@ -30,6 +32,7 @@ Before training LLM, I recommend you to read the paper about the target model fi
 ### Pretrain
 ##### - Wikipedia - 
   - epoch : 40
+  - Only Masked Language Model, No Next Sentence Prediction 
 
   |                          Model                          | Size | perplexity | eval_loss |                                             cfg                                              | 
   |:-------------------------------------------------------:|:----:|:----------:|:---------:|:--------------------------------------------------------------------------------------------:|

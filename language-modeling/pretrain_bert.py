@@ -50,9 +50,6 @@ group = parser.add_argument_group('Dataset')
 ## Download or Stream dataset from Huggingface hub
 group.add_argument('--dataset', type=str, help="The name of the dataset")
 group.add_argument('--dataset_config', type=str, help="The configuration name of the dataset")
-group.add_argument('--cache_dir', type=str, default=None, help="Directory of stored Dataset")
-group.add_argument('-s', '--streaming', action='store_true', default=False,
-                   help="Enable streaming mode -> not require local disk usage")
 
 ## Load Stored dataset
 group.add_argument('--load_raw_data', action='store_true', default=False,
