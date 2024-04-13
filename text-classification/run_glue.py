@@ -52,11 +52,6 @@ parser = argparse.ArgumentParser(description="Finetuning on GLUE - Pytorch Large
 group = parser.add_argument_group('Dataset')
 group.add_argument('--task', type=str, default=None, help="Name of the GLUE task to train on",
                    choices=list(task_to_keys.keys()))
-group.add_argument('--task_list', type=list, default=list(task_to_keys.keys()),
-                   help=(
-                       "If 'use_param_list' passed, list of tasks will be applied sequentially"
-                       "ex. ['mnli', 'cola']"
-                   ))
 group.add_argument('--data_dir', type=str, help="Directory of stored Custom Dataset")
 group.add_argument('-s', '--streaming', action='store_true', default=False,
                    help="Enable streaming mode -> not require local disk usage")
@@ -76,17 +71,8 @@ group.add_argument('--pad_to_max_length', action="store_true",
                    help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used.")
 group.add_argument('--train_batch_size', type=int, default=16, help="Batch size per device for Training dataloader")
 group.add_argument('--eval_batch_size', type=int, default=16, help="Batch size per device for Evaluation dataloader")
-group.add_argument('--use_param_list', action='store_true', default=False,
-                   help="Use task_list, batch_list, lr_list for using more than one parameters")
-group.add_argument('--batch_list', type=list,
-                   default=[[8, 1], [16, 1], [16, 2], [16, 4], [16, 8]],
-                   help=(
-                       "List of Batch size for Train & Eval dataloader per device"
-                       "[[batch_size, grad_accum_step],[batch_size, grad_accum_step],...]"
-                   ))
 group.add_argument('--lr', type=float, default=5e-5,
                    help="Initial Learning Rate to use (after the potential warmup period)")
-group.add_argument('--lr_list', type=list, default=[1e-4, 3e-4, 3e-5, 5e-5], help="List of Learning rate")
 group.add_argument('--sche', type=str, default="linear", help="Learning Rate scheduler type")
 group.add_argument('--weight_decay', type=float, default=0.0, help="Weight Decay to use")
 group.add_argument('--train_epoch', type=int, default=3, help="Total number of training Epochs")
@@ -462,32 +448,4 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-
-    ## Use Parameter list to apply variable parameters for training.
-    ## If passed, you don't need to change parameters every time.
-    ## Just make input as list!
-    if args.use_param_list:
-        if args.task is not None:
-            args.task_list = [args.task]
-
-        print(f"List of Tasks: {args.task_list}")
-        print(f"List of Batch sizes: {args.batch_list}")
-        print(f"List of Learning rates: {args.lr_list}")
-
-        out_dir = args.out_dir
-        project = args.project
-        run_name = args.run_name
-        for task in args.task_list:
-            if args.task is not None:
-                args.task = task
-                args.project = f"{project}_{args.task.upper()}"
-                args.out_dir = os.path.join(out_dir, args.task)
-            for train_bs in args.batch_list:
-                args.train_batch_size = train_bs[0]
-                args.grad_accum_steps = train_bs[1]
-                for lr in args.lr_list:
-                    args.lr = lr
-                    args.run_name = f"{run_name}_{args.task}_{args.train_batch_size*args.grad_accum_steps}_{args.lr}"
-                    main(args)
-    else:
-        main(args)
+    main(args)
