@@ -5,7 +5,7 @@ import numpy as np
 import random
 
 import torch
-from torch.nn import CrossEntropyLoss, NLLLoss
+import argparse
 
 import datasets
 from datasets import load_dataset, concatenate_datasets, Dataset, DatasetDict
@@ -14,10 +14,102 @@ from accelerate.utils import InitProcessGroupKwargs
 
 import transformers
 
-loss_functions = {
-    "CrossEntropyLoss": CrossEntropyLoss(),
-    "NLLLoss": NLLLoss(),
-}
+def parse_argument():
+    parser = argparse.ArgumentParser(
+        description="Pretraining BERT")
+
+    group = parser.add_argument_group('Dataset')
+    ## Download or Stream dataset from Huggingface hub
+    group.add_argument('--dataset', type=str, help="The name of the dataset")
+    group.add_argument('--dataset_config', type=str, help="The configuration name of the dataset")
+    group.add_argument('--cache_dir', type=str, default=None, help="Directory of stored Dataset")
+    group.add_argument('-s', '--streaming', action='store_true', default=False,
+                       help="Enable streaming mode -> not require local disk usage")
+
+    ## Load Stored dataset
+    group.add_argument('--tokenizer', type=str,
+                       help="Name or Path of the Pretrained tokenizer (required if model_name != tokenizer_name)")
+    group.add_argument('--load_raw_data', action='store_true', default=False,
+                       help="Load raw dataset files, not preprocessed dataset files")
+    group.add_argument('--save_tokenized_dataset', action='store_true', default=False,
+                       help="Save tokenized datasets after preprocessing and tokenizing the raw datasets")
+    group.add_argument('--extension', type=str, default='arrow',
+                       help="Extension of files(.txt, .json, .arrow...)")
+    group.add_argument('--train_file', type=str,
+                       help=("File name which contains the train data -> extension : .csv, .json, .txt, .arrow"
+                             "Path which contains the multiple train data"
+                             ))
+    group.add_argument('--valid_file', type=str,
+                       help=("File name contains the validation data -> extension : .csv, .json, .txt, .arrow"
+                             "Path which contains the multiple validation data"
+                             ))
+    group.add_argument('--valid_split_percentage', type=int, default=5,
+                       help="Percentage of Train set used as Validation set if there is no Valid split")
+
+    group.add_argument('--pad_to_max_length', action='store_true', default=False,  ### MLM ###
+                       help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used")
+    group.add_argument('--max_seq_length', type=int, default=None,  ### MLM ###
+                       help=(
+                           "Maximum total input sequence length after tokenization."
+                           "Sequences longer than this value will be truncated."
+                       ))
+    group.add_argument('--line_by_line', action='store_true', default=False,  ### MLM ###
+                       help="Distinguish lines of text in Dataset -> Distinct Sequences")
+
+    group = parser.add_argument_group('Parameter')
+    group.add_argument('--train_batch_size', type=int, default=16,
+                       help="Batch size for Training dataloader (per device)")
+    group.add_argument('--eval_batch_size', type=int, default=16,
+                       help="Batch size for evaluation dataloader (per device)")
+    group.add_argument('--mlm_probability', type=float, default=0.15,
+                       help="Probability of masked tokens for MLM")  ### MLM ###
+    group.add_argument('--lr', type=float, default=5e-5, help="Learning rate")
+    group.add_argument('--weight_decay', type=float, default=0.0, help="Weight decay")
+    group.add_argument('--train_epoch', type=int, default=3, help="Total number of Training epochs")
+    group.add_argument('--max_train_steps', type=int, default=None,
+                       help="Total number of Training steps -> override 'epochs'")
+    group.add_argument('--grad_accum_steps', type=int, default=1,
+                       help="Number of update steps to accumulate gradients before performing a backward/update pass")
+    group.add_argument('--sche', type=str, default="linear",
+                       help="LR Scheduler : 'linear', 'cosine', cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'")
+    group.add_argument('--num_warmup_steps', type=int, default=0, help="Number of Warmup step in LR scheduler")
+    group.add_argument('--drop_prob', type=float, default=0.0, help="Dropout Probability")  ### MLM ###
+
+    group = parser.add_argument_group('Setting')
+    group.add_argument('--log_wandb', action='store_true', default=False,
+                       help="log training and validation metrics to wandb")
+    group.add_argument('--project', type=str, default='',
+                       help="name of train project, name of sub-folder for output")
+    group.add_argument('--run_name', type=str, default=False, help="run name for wandb")
+    group.add_argument('--out_dir', type=str, default=None, help="Directory to store the final model")
+    group.add_argument('--checkpointing_steps', type=str, default=None,
+                       help=(
+                           " default: not save checkpoint "
+                           " 'n'(ex.'10'): save checkpoint for every n(ex.10) step "
+                       ))
+    group.add_argument('--checkpointing_epochs', type=str, default=None,
+                       help=(
+                           " default: not save checkpoint "
+                           " 'n'(ex.'10'): save checkpoint for every n(ex.10) epoch "
+                       ))
+    group.add_argument('--resume_from_checkpoint', type=str, default=None,
+                       help="Directory to continue training from Checkpoint")
+
+    parser.add_argument('--seed', type=int, default=None, help="Seed for reproducible training")
+    parser.add_argument('--preprocess_num_worker', type=int, default=None,
+                        help="Number of process for Preprocessing")
+    parser.add_argument('--overwrite_cache', action="store_true", help="Overwrite the cached Train & Eval sets")
+    parser.add_argument('--trust_remote_code', action="store_true", default=False,
+                        help=(
+                            "Allow custom models (defined on the Hub - https://huggingface.co/models)"
+                            "true : Trust repositories & Execute code present on the Hub"
+                        ))
+    parser.add_argument('--low_cpu_mem_usage', action="store_true",
+                        help=(
+                            "Create the model as an empty shell -> only materialize parameters when pretrained models are loaded"
+                            "If passed, LLM loading time and RAM comsumption will be benefited"
+                        ))
+    return parser
 
 def sanity_check(accelerator, args):
     if args.dataset is None and\
@@ -182,12 +274,10 @@ def jsonl_to_json(jsonl_file_path):
 def is_next_labeling(text_data, sentence1, sentence2):
     if random.random() > 0.5:
         return torch.LongTensor([1]), [sentence1, sentence2]
-            # sentence1 + '[SEP]' + sentence2
     else:
         rand_article = random.randint(0, len(text_data) - 1)
         rand_line = random.randint(0, len(text_data[rand_article]) - 1)
         return torch.LongTensor([0]), [sentence1, text_data[rand_article][rand_line]]
-            # sentence1 + '[SEP]' + text_data[rand_article][rand_line]
 
 def random_masking(sentence, mask_ratio=0.15, tokenizer=None):
     words = np.array(sentence.split())
@@ -237,6 +327,4 @@ def preprocess_function(examples, text_column_name="text"):
             }
 
 if __name__ == "__main__":
-    raw_datasets = load_dataset("arrow", data_files='/home/edg1113/shared/hdd_ext/nvme1/public/language/wikipedia/20220301.en/2.0.0/aa542ed919df55cc5d3347f42dd4521d05ca68751f50dbc32bae2a7f1e167559/wikipedia-train.arrow',
-                                trust_remote_code=True)
-    print(raw_datasets)
+    pass
