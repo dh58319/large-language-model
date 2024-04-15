@@ -28,7 +28,8 @@ from transformers.utils.versions import require_version
 
 from .utils import init_accelerator, make_log, load_checkpoint_utils
 
-from ..model.bert.Bert import BertSequenceClassification as ModelForSequenceClassification
+from transformers.models.bert import BertForSequenceClassification as ModelForSequenceClassification
+# from ..model.bert.Bert import BertSequenceClassification as ModelForSequenceClassification
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")

@@ -22,8 +22,8 @@ from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
-# from ..model.bert.Bert import BertNoNSP as scratch_model
-from transformers.models.bert import BertForMaskedLM as scratch_model
+from ..model.bert.Bert import BertNoNSP as scratch_model
+# from transformers.models.bert import BertForMaskedLM as scratch_model
 from ..model.bert.Bert_config import BertConfig
 
 BERT_cfg = {

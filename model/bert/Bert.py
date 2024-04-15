@@ -104,7 +104,7 @@ class BertNoNSP(BertPreTrainedModel):
         self.mlm.mlm_linear = new_embeddings
 
     def forward(self, x):
-        bert_output = self.bert(x)
+        bert_output, _ = self.bert(x)
 
         mlm_output = self.mlm(bert_output)
         return mlm_output
@@ -148,14 +148,10 @@ class BertSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.tanh = nn.Tanh()
-
         self.post_init()
 
     def forward(self, x):
-        outputs = self.bert(x)
-        pooled_output = self.tanh(self.dense(outputs[:, 0]))
+        outputs, pooled_output = self.bert(x)
 
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
