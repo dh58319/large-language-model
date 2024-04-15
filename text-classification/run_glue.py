@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import os
+import time
 
 import wandb
 import evaluate
@@ -54,7 +55,7 @@ sweep_config = {
     "name": "sweep",
     "metric": {"goal": "maximize", "name": "accuracy"},
     "parameters": {
-        "grad_accum_steps": {"values": [1, 2, 4, 8, 16]},
+        "batch_size": {"values": [8, 16, 32, 64, 128]},
         "lr": {"values": [1e-4, 3e-4, 3e-5, 5e-5]},
     },
 }
@@ -98,6 +99,7 @@ group.add_argument('--grad_accum_steps', type=int, default=1,
                    help="Number of update steps to accumulate before performing a backward/update pass")
 
 group = parser.add_argument_group('Setting')
+group.add_argument('--num_gpu', type=int, default=1, help="Number of GPUs used")
 group.add_argument('--log_wandb', action='store_true', default=False,
                    help="log training and validation metrics to wandb")
 group.add_argument('--project', type=str, default='',
@@ -129,15 +131,11 @@ def main(args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
 
-    for grad_accum_step, lr in \
-            zip(sweep_config["parameters"]["grad_accum_steps"]["values"], sweep_config["parameters"]["lr"]["values"]):
-        args.grad_accum_steps = grad_accum_step
-        args.lr = lr
-
     ## start wandb & sweep(optional)
     if args.log_wandb:
         if accelerator.is_main_process:
-            wandb.init(project=f"{args.project}_{args.task}", name=args.run_name)
+            wandb.init(project=f"{args.project}_{args.task}",
+                       name=f"{args.run_name}_bs{int(args.train_batch_size*args.num_gpu)}_lr{args.lr}")
 
         if args.sweep:
             args.grad_accum_steps = wandb.config.grad_accum_steps
@@ -344,7 +342,7 @@ def main(args):
             print("Train Process")
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
-            outputs = model(batch)
+            outputs = model(**batch)
             loss = outputs.loss
             total_loss += loss.detach().float()
             loss = loss / args.grad_accum_steps
@@ -373,7 +371,7 @@ def main(args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                outputs = model(batch)
+                outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
             predictions, references = accelerator.gather((predictions, batch["labels"]))
 
@@ -424,7 +422,7 @@ def main(args):
                 wandb.log(
                     {
                         "accuracy" if args.task is not None else "glue": eval_metric,
-                        "best_accuracy" if args.task is not None else "glue": best_metric,
+                        "best_accuracy" if args.task is not None else "best_glue": best_metric,
                         "train_loss": total_loss.item() / len(train_dataloader),
                         "epoch": epoch,
                         "step": completed_steps,
@@ -469,11 +467,17 @@ def main(args):
     if args.log_wandb:
         wandb.finish()
 
+    time.sleep(5)
+
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.sweep:
         sweep_id = wandb.sweep(sweep=sweep_config, project=f"{args.project}_{args.task}")
         wandb.agent(sweep_id, function=main(args), count=1)
     else:
-        main(args)
+        for lr in sweep_config["parameters"]["lr"]["values"]:
+            for batch_size in sweep_config["parameters"]["batch_size"]["values"]:
+                args.train_batch_size = args.eval_batch_size = int(batch_size/args.num_gpu)
+                args.lr = lr
+                main(args)
 
