@@ -23,7 +23,6 @@ from transformers.utils.versions import require_version
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
 from ..model.bert.Bert import BertNoNSP as scratch_model
-# from transformers.models.bert import BertForMaskedLM as scratch_model
 from ..model.bert.Bert_config import BertConfig
 
 BERT_cfg = {
@@ -225,14 +224,10 @@ def main(model_config, args):
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
-                # mlm_outputs = model(batch)
-                outputs = model(**batch)
+                outputs = model(batch)
 
-                # loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
-                loss = outputs.loss
-
-                # total_loss += loss
-                total_loss += loss.detach().float()
+                loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+                total_loss += loss
 
                 accelerator.backward(loss)
                 optimizer.step()
@@ -260,12 +255,9 @@ def main(model_config, args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                # outputs = model(batch)
-                outputs = model(**batch)
+                outputs = model(batch)
 
-            # loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
-            loss = outputs.loss
-
+            loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
             losses.append(accelerator.gather_for_metrics(loss.repeat(args.eval_batch_size)))
             eval_progress_bar.update(1)
 

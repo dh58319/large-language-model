@@ -33,17 +33,19 @@ class BertEmbedding(nn.Module):
         return self.dropout(self.layer_norm(embeddings))
 
 class BertModel(BertPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, pooling=True):
         super().__init__(config)
         self.config = config
+        self.pooling = pooling
 
         self.embedding = BertEmbedding(config)
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(config) for _ in range(config.num_hidden_layers)]
         )
 
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.tanh = nn.Tanh()
+        if pooling:
+            self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+            self.tanh = nn.Tanh()
 
         self.post_init()
 
@@ -61,7 +63,7 @@ class BertModel(BertPreTrainedModel):
         x = self.embedding(x)
         for transformer in self.transformer_blocks:
             x = transformer(x)
-        pooled_output = self.tanh(self.dense(x[:, 0]))
+        pooled_output = self.tanh(self.dense(x[:, 0])) if self.pooling else None
         return x, pooled_output
 
 class NextSentencePrediction(nn.Module):
@@ -92,7 +94,7 @@ class BertNoNSP(BertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        self.bert = BertModel(config)
+        self.bert = BertModel(config, pooling=False)
         self.mlm = MaskedLanguageModel(config)
 
         self.post_init()
