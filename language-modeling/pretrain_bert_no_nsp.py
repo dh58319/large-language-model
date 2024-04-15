@@ -22,7 +22,8 @@ from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
-from ..model.bert.Bert import BertNoNSP as scratch_model
+# from ..model.bert.Bert import BertNoNSP as scratch_model
+from transformers.models.bert import BertForMaskedLM as scratch_model
 from ..model.bert.Bert_config import BertConfig
 
 BERT_cfg = {
@@ -224,12 +225,14 @@ def main(model_config, args):
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
-                mlm_outputs = model(batch)
+                # mlm_outputs = model(batch)
+                outputs = model(**batch)
 
-                mlm_loss = loss_func(mlm_outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+                # loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+                loss = outputs.loss
 
-                loss = mlm_loss
-                total_loss += loss
+                # total_loss += loss
+                total_loss += loss.detach().float()
 
                 accelerator.backward(loss)
                 optimizer.step()
@@ -257,11 +260,12 @@ def main(model_config, args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                mlm_outputs = model(batch)
+                # outputs = model(batch)
+                outputs = model(**batch)
 
-            mlm_loss = loss_func(mlm_outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+            # loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+            loss = outputs.loss
 
-            loss = mlm_loss
             losses.append(accelerator.gather_for_metrics(loss.repeat(args.eval_batch_size)))
             eval_progress_bar.update(1)
 

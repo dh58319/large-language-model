@@ -1,11 +1,10 @@
-import math
-
-import os
 import torch
 import torch.nn as nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ..transformer.transformer import TransformerBlock
 from transformers.models.bert import BertPreTrainedModel
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 class BertEmbedding(nn.Module):
     def __init__(self, config):
@@ -43,6 +42,9 @@ class BertModel(BertPreTrainedModel):
             [TransformerBlock(config) for _ in range(config.num_hidden_layers)]
         )
 
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.tanh = nn.Tanh()
+
         self.post_init()
 
     def get_input_embeddings(self):
@@ -59,19 +61,16 @@ class BertModel(BertPreTrainedModel):
         x = self.embedding(x)
         for transformer in self.transformer_blocks:
             x = transformer(x)
-        return x
+        pooled_output = self.tanh(self.dense(x[:, 0]))
+        return x, pooled_output
 
 class NextSentencePrediction(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.tanh = nn.Tanh()
-
         self.nsp_linear = nn.Linear(config.hidden_size, 2)
 
     def forward(self, x):
-        pooled_output = self.tanh(self.dense(x[:, 0]))
-        return self.nsp_linear(pooled_output)
+        return self.nsp_linear(x)
 
 class MaskedLanguageModel(nn.Module):
     def __init__(self, config):
@@ -128,11 +127,69 @@ class BertLM(BertPreTrainedModel):
         self.mlm.mlm_linear = new_embeddings
 
     def forward(self, x):
-        bert_output = self.bert(x)
+        bert_output, pooled_output = self.bert(x)
 
-        nsp_output = self.nsp(bert_output)
+        nsp_output = self.nsp(pooled_output)
         mlm_output = self.mlm(bert_output)
         return nsp_output, mlm_output
+
+# for finetuning on GLUE
+# (reference : https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py)
+class BertSequenceClassification(BertPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+        self.num_labels = config.num_labels
+
+        self.bert = BertModel(config)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.tanh = nn.Tanh()
+
+        self.post_init()
+
+    def forward(self, x):
+        outputs = self.bert(x)
+        pooled_output = self.tanh(self.dense(outputs[:, 0]))
+
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        loss = None
+        labels = x["labels"]
+        if labels is not None:
+            if self.config.problem_type is None:
+                if self.num_labels == 1:
+                    self.config.problem_type = "regression"
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                    self.config.problem_type = "single_label_classification"
+                else:
+                    self.config.problem_type = "multi_label_classification"
+
+            if self.config.problem_type == "regression":
+                loss_fct = MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif self.config.problem_type == "single_label_classification":
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            elif self.config.problem_type == "multi_label_classification":
+                loss_fct = BCEWithLogitsLoss()
+                loss = loss_fct(logits, labels)
+
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
 if __name__ == "__main__":
     pass

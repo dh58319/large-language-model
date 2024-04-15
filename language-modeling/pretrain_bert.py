@@ -100,8 +100,6 @@ def main(model_config, args):
             preprocessed_datasets = datasets.map(
                 preprocess_function,
                 batched=True,
-                batch_size=1_000,
-                writer_batch_size=1_000,
                 num_proc=args.preprocess_num_worker,
                 remove_columns=column_names,
                 load_from_cache_file=not args.overwrite_cache,

@@ -16,7 +16,6 @@ from tqdm.auto import tqdm
 
 from transformers import (
     AutoConfig,
-    AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollatorWithPadding,
     PretrainedConfig,
@@ -24,10 +23,12 @@ from transformers import (
     get_scheduler,
 )
 
-from utils import init_accelerator, make_log, load_checkpoint
-
-from transformers.utils import check_min_version, send_example_telemetry
+from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
+
+from .utils import init_accelerator, make_log, load_checkpoint_utils
+
+from ..model.bert.Bert import BertSequenceClassification as ModelForSequenceClassification
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
@@ -47,18 +48,28 @@ task_to_keys = {
     "wnli": ("sentence1", "sentence2"),
 }
 
+sweep_config = {
+    "method": "grid",
+    "name": "sweep",
+    "metric": {"goal": "maximize", "name": "accuracy"},
+    "parameters": {
+        "grad_accum_steps": {"values": [1, 2, 4, 8, 16]},
+        "lr": {"values": [1e-4, 3e-4, 3e-5, 5e-5]},
+    },
+}
+
 parser = argparse.ArgumentParser(description="Finetuning on GLUE - Pytorch Large Language Model")
 
 group = parser.add_argument_group('Dataset')
 group.add_argument('--task', type=str, default=None, help="Name of the GLUE task to train on",
                    choices=list(task_to_keys.keys()))
-group.add_argument('--data_dir', type=str, help="Directory of stored Custom Dataset")
+group.add_argument('--cache_dir', type=str, help="Directory of stored Custom Dataset")
 group.add_argument('-s', '--streaming', action='store_true', default=False,
                    help="Enable streaming mode -> not require local disk usage")
 
 group = parser.add_argument_group('Model')
 group.add_argument('--model', type=str,
-                   help="Name or Path of the Pretrained model from the Hub - https://huggingface.co/models")
+                   help="Name or Path of the Pretrained model")
 
 group = parser.add_argument_group('Parameter')
 group.add_argument('--max_length', type=int, default=128,
@@ -69,8 +80,8 @@ group.add_argument('--max_length', type=int, default=128,
                    ))
 group.add_argument('--pad_to_max_length', action="store_true",
                    help="Pad all samples to 'max_length'. Otherwise, dynamic padding is used.")
-group.add_argument('--train_batch_size', type=int, default=16, help="Batch size per device for Training dataloader")
-group.add_argument('--eval_batch_size', type=int, default=16, help="Batch size per device for Evaluation dataloader")
+group.add_argument('--train_batch_size', type=int, default=8, help="Batch size per device for Training dataloader")
+group.add_argument('--eval_batch_size', type=int, default=8, help="Batch size per device for Evaluation dataloader")
 group.add_argument('--lr', type=float, default=5e-5,
                    help="Initial Learning Rate to use (after the potential warmup period)")
 group.add_argument('--sche', type=str, default="linear", help="Learning Rate scheduler type")
@@ -91,6 +102,7 @@ group.add_argument('--log_wandb', action='store_true', default=False,
 group.add_argument('--project', type=str, default='',
                    help="name of train project, name of sub-folder for output")
 group.add_argument('--run_name', type=str, default=False, help="run name for wandb")
+group.add_argument('--sweep', action='store_true', default=False, help="Use Sweep for tuning hyperparameters")
 group.add_argument('--out_dir', type=str, default=None, help="Directory to store the final model")
 group.add_argument('--checkpointing_steps', type=str, default=None,
                    help=(
@@ -116,9 +128,19 @@ def main(args):
     ## Initialize the accelerator
     accelerator = init_accelerator(args)
 
+    for grad_accum_step, lr in \
+            zip(sweep_config["parameters"]["grad_accum_steps"]["values"], sweep_config["parameters"]["lr"]["values"]):
+        args.grad_accum_steps = grad_accum_step
+        args.lr = lr
+
+    ## start wandb & sweep(optional)
     if args.log_wandb:
         if accelerator.is_main_process:
-            wandb.init(project=args.project, name=args.run_name, config=args, reinit=True)
+            wandb.init(project=f"{args.project}_{args.task}", name=args.run_name)
+
+        if args.sweep:
+            args.grad_accum_steps = wandb.config.grad_accum_steps
+            args.lr = wandb.config.lr
 
     ## Make one log on every process with the configuration for debugging.
     make_log(logger, accelerator)
@@ -135,7 +157,7 @@ def main(args):
 
     ## Get Dataset
     ## public datasets are available on the hub - https://huggingface.co/datasets/
-    raw_datasets = load_dataset("glue", args.task, cache_dir=args.data_dir, streaming=args.streaming, trust_remote_code=True)
+    raw_datasets = load_dataset("glue", args.task, cache_dir=args.cache_dir, streaming=args.streaming, trust_remote_code=True)
     ## Labels
     is_regression = args.task == "stsb"
     if not is_regression:
@@ -149,7 +171,7 @@ def main(args):
         args.model, num_labels=num_labels, finetuning_task=args.task, trust_remote_code=args.trust_remote_code
     )
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
-    model = AutoModelForSequenceClassification.from_pretrained(
+    model = ModelForSequenceClassification.from_pretrained(
         args.model, config=config, ignore_mismatched_sizes=args.ignore_mismatched_sizes, trust_remote_code=args.trust_remote_code
     )
 
@@ -307,7 +329,7 @@ def main(args):
     ## Load weights & states from Checkpoint
     if args.resume_from_checkpoint:
         resume_step, completed_steps, starting_epoch =\
-            load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch)
+            load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_per_epoch)
 
     for epoch in range(starting_epoch, args.train_epoch):
         model.train()
@@ -321,7 +343,7 @@ def main(args):
             print("Train Process")
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
-            outputs = model(**batch)
+            outputs = model(batch)
             loss = outputs.loss
             total_loss += loss.detach().float()
             loss = loss / args.grad_accum_steps
@@ -350,7 +372,7 @@ def main(args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                outputs = model(**batch)
+                outputs = model(batch)
             predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
             predictions, references = accelerator.gather((predictions, batch["labels"]))
 
@@ -448,4 +470,9 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args)
+    if args.sweep:
+        sweep_id = wandb.sweep(sweep=sweep_config, project=f"{args.project}_{args.task}")
+        wandb.agent(sweep_id, function=main(args), count=1)
+    else:
+        main(args)
+

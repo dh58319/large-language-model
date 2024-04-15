@@ -32,7 +32,7 @@ def make_log(logger, accelerator):
         datasets.utils.logging.set_verbosity_error()
         transformers.utils.logging.set_verbosity_error()
 
-def load_checkpoint(args, accelerator, train_dataloader, num_update_steps_per_epoch):
+def load_checkpoint_utils(args, accelerator, train_dataloader, num_update_steps_per_epoch):
     ## Load weights & states from Checkpoint
     checkpoint_path = args.resume_from_checkpoint
     path = os.path.basename(args.resume_from_checkpoint)
