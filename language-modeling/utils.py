@@ -140,7 +140,7 @@ def init_accelerator(args):
     ## Initialize the accelerator
     accelerate_log_kwargs = {}
     kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=1800000))
-    accelerator = Accelerator(gradient_accumulation_steps=args.grad_accum_steps, kwargs_handlers=[kwargs], **accelerate_log_kwargs)
+    accelerator = Accelerator(mixed_precision="fp16", gradient_accumulation_steps=args.grad_accum_steps, kwargs_handlers=[kwargs], **accelerate_log_kwargs)
     return accelerator
 
 def make_log(logger, accelerator):

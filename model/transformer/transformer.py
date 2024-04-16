@@ -53,8 +53,8 @@ class MultiHeadAttention(nn.Module):
 class FeedForward(nn.Module):
     def __init__(self, config):
         super(FeedForward, self).__init__()
-        self.linear_1 = nn.Linear(config.hidden_size, 4 * config.hidden_size)
-        self.linear_2 = nn.Linear(4 * config.hidden_size, config.hidden_size)
+        self.linear_1 = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.linear_2 = nn.Linear(config.intermediate_size, config.hidden_size)
 
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)

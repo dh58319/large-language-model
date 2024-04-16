@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ..transformer.transformer import TransformerBlock
+
 from transformers.models.bert import BertPreTrainedModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 
@@ -31,6 +32,7 @@ class BertEmbedding(nn.Module):
         embeddings = input_embeddings + token_type_embeddings + position_embeddings
 
         return self.dropout(self.layer_norm(embeddings))
+
 
 class BertModel(BertPreTrainedModel):
     def __init__(self, config, pooling=True):
@@ -66,6 +68,7 @@ class BertModel(BertPreTrainedModel):
         pooled_output = self.tanh(self.dense(x[:, 0])) if self.pooling else None
         return x, pooled_output
 
+
 class NextSentencePrediction(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -73,6 +76,7 @@ class NextSentencePrediction(nn.Module):
 
     def forward(self, x):
         return self.nsp_linear(x)
+
 
 class MaskedLanguageModel(nn.Module):
     def __init__(self, config):
@@ -88,6 +92,7 @@ class MaskedLanguageModel(nn.Module):
     def forward(self, x):
         hidden_states = self.layer_norm(self.gelu(self.dense(x)))
         return self.mlm_linear(hidden_states)
+
 
 class BertNoNSP(BertPreTrainedModel):
     def __init__(self, config):
@@ -109,7 +114,12 @@ class BertNoNSP(BertPreTrainedModel):
         bert_output, _ = self.bert(x)
 
         mlm_output = self.mlm(bert_output)
-        return mlm_output
+
+        loss_func = CrossEntropyLoss()
+        mlm_loss = loss_func(mlm_output.view(-1, self.config.vocab_size), x["labels"].view(-1))
+
+        return mlm_loss
+
 
 class BertLM(BertPreTrainedModel):
     def __init__(self, config):
@@ -133,7 +143,13 @@ class BertLM(BertPreTrainedModel):
 
         nsp_output = self.nsp(pooled_output)
         mlm_output = self.mlm(bert_output)
-        return nsp_output, mlm_output
+
+        loss_func = CrossEntropyLoss()
+        nsp_loss = loss_func(nsp_output.view(-1, 2), x["is_next_labels"].view(-1))
+        mlm_loss = loss_func(mlm_output.view(-1, self.config.vocab_size), x["labels"].view(-1))
+
+        return nsp_loss+mlm_loss
+
 
 # for finetuning on GLUE
 # (reference : https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py)
@@ -189,5 +205,46 @@ class BertSequenceClassification(BertPreTrainedModel):
             attentions=outputs.attentions,
         )
 
+
 if __name__ == "__main__":
-    pass
+    #
+    if __package__ is None:
+        import sys
+        from os import path
+
+        print(path.dirname(path.dirname(path.abspath(__file__))))
+        sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+
+        from transformer.transformer import TransformerBlock
+        from bert.Bert_config import BertConfig
+    #
+    BERT_cfg = {
+        # prajjwal1/bert-     [n_embd, n_layer]
+        "prajjwal1/bert-tiny": [128, 2],
+        "prajjwal1/bert-mini": [256, 4],
+        "prajjwal1/bert-small": [512, 4],
+        "prajjwal1/bert-medium": [512, 8],
+    }
+
+    config = BertConfig(hidden_size=128, num_hidden_layers=2,
+                          num_attention_heads=2, attention_probs_dropout_prob=0.1)
+    #
+    # x = {"input_ids" : torch.randn(64, 512).to(torch.int64),
+    #      "attention_mask" : torch.randn(64, 512).to(torch.int64),
+    #      "token_type_ids": torch.randn(64, 512).to(torch.int64),
+    #      "labels" : torch.randn(64, 512).to(torch.int64)
+    #      }
+    # bert = BertNoNSP(config)
+    #
+    #
+    # print(output.shape)
+
+    model = BertModel(config, pooling=False)
+    param_size = 0
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+    buffer_size = 0
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
+    size_all_mb = (param_size + buffer_size) / 1024 ** 2
+    print('model size: {:.3f}MB'.format(size_all_mb))

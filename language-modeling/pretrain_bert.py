@@ -38,11 +38,7 @@ def set_config(args):
     return BertConfig(hidden_size=BERT_cfg[args.tokenizer][0], num_hidden_layers=BERT_cfg[args.tokenizer][1],
                       num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob)
 
-## Error will be occured if minimal version of Transformers is not installed
-check_min_version("4.38.0.dev0")
-
 logger = get_logger(__name__)
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
 
 def main(model_config, args):
     ## Initialize the accelerator
@@ -232,12 +228,8 @@ def main(model_config, args):
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
-                nsp_outputs, mlm_outputs = model(batch)
+                loss = model(batch)
 
-                nsp_loss = loss_func(nsp_outputs.view(-1, 2), batch["is_next_labels"].view(-1))
-                mlm_loss = loss_func(mlm_outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
-
-                loss = nsp_loss + mlm_loss
                 total_loss += loss
 
                 accelerator.backward(loss)
@@ -266,12 +258,8 @@ def main(model_config, args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                nsp_outputs, mlm_outputs = model(batch)
+                loss = model(batch)
 
-            nsp_loss = loss_func(nsp_outputs.view(-1, 2), batch["is_next_labels"].view(-1))
-            mlm_loss = loss_func(mlm_outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
-
-            loss = nsp_loss + mlm_loss
             losses.append(accelerator.gather_for_metrics(loss.repeat(args.eval_batch_size)))
             eval_progress_bar.update(1)
 

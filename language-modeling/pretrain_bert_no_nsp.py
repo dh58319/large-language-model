@@ -12,14 +12,13 @@ from accelerate.logging import get_logger
 from accelerate.utils import set_seed
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+from torchinfo import summary
 
 from transformers import (
     AutoTokenizer,
     DataCollatorForLanguageModeling,
     get_scheduler,
 )
-from transformers.utils import check_min_version
-from transformers.utils.versions import require_version
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
 from ..model.bert.Bert import BertNoNSP as scratch_model
@@ -37,11 +36,7 @@ def set_config(args):
     return BertConfig(hidden_size=BERT_cfg[args.tokenizer][0], num_hidden_layers=BERT_cfg[args.tokenizer][1],
                       num_attention_heads=BERT_cfg[args.tokenizer][1], attention_probs_dropout_prob=args.drop_prob)
 
-## Error will be occured if minimal version of Transformers is not installed
-check_min_version("4.38.0.dev0")
-
 logger = get_logger(__name__)
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
 
 def main(model_config, args):
     ## Initialize the accelerator
@@ -152,7 +147,6 @@ def main(model_config, args):
         }
     ]
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.lr, betas=(0.9, 0.999))
-    loss_func = nn.CrossEntropyLoss()
 
     ## Calculate the number of Train steps
     overrode_max_train_steps = False
@@ -202,6 +196,16 @@ def main(model_config, args):
     logger.info(f"  Gradient Accumulation steps = {args.grad_accum_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
+    if accelerator.is_main_process:
+        param_size = 0
+        for param in model.parameters():
+            param_size += param.nelement() * param.element_size()
+        buffer_size = 0
+        for buffer in model.buffers():
+            buffer_size += buffer.nelement() * buffer.element_size()
+        size_all_mb = (param_size + buffer_size) / 1024 ** 2
+        print('model size: {:.3f}MB'.format(size_all_mb))
+
     completed_steps = 0
     starting_epoch = 0
 
@@ -224,9 +228,7 @@ def main(model_config, args):
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
-                outputs = model(batch)
-
-                loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
+                loss = model(batch)
                 total_loss += loss
 
                 accelerator.backward(loss)
@@ -255,9 +257,8 @@ def main(model_config, args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                outputs = model(batch)
+                loss = model(batch)
 
-            loss = loss_func(outputs.view(-1, config.vocab_size), batch["labels"].view(-1))
             losses.append(accelerator.gather_for_metrics(loss.repeat(args.eval_batch_size)))
             eval_progress_bar.update(1)
 
