@@ -29,8 +29,7 @@ from transformers.utils.versions import require_version
 
 from .utils import init_accelerator, make_log, load_checkpoint_utils
 
-from transformers.models.bert import BertForSequenceClassification as ModelForSequenceClassification
-# from ..model.bert.Bert import BertSequenceClassification as ModelForSequenceClassification
+from ..model.bert.Bert import BertSequenceClassification as ModelForSequenceClassification
 
 ## Error will be occured if minimal version of Transformers is not installed
 check_min_version("4.38.0.dev0")
@@ -342,7 +341,7 @@ def main(args):
             print("Train Process")
         train_progress_bar = tqdm(range(len(active_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(active_dataloader):
-            outputs = model(**batch)
+            outputs = model(batch)
             loss = outputs.loss
             total_loss += loss.detach().float()
             loss = loss / args.grad_accum_steps
@@ -371,7 +370,7 @@ def main(args):
         eval_progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for step, batch in enumerate(eval_dataloader):
             with torch.no_grad():
-                outputs = model(**batch)
+                outputs = model(batch)
             predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
             predictions, references = accelerator.gather((predictions, batch["labels"]))
 

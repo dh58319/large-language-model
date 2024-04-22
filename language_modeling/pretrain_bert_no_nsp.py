@@ -6,13 +6,11 @@ import os
 
 import wandb
 import torch
-import torch.nn as nn
 
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from torchinfo import summary
 
 from transformers import (
     AutoTokenizer,
@@ -21,7 +19,9 @@ from transformers import (
 )
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
-from ..model.bert.Bert import BertNoNSP as scratch_model
+# from ..model.bert.Bert import BertNoNSP as scratch_model
+from ..model.channel_attention_bert import CABertNoNSP as scratch_model
+
 from ..model.bert.Bert_config import BertConfig
 
 BERT_cfg = {

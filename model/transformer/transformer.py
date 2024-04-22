@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import List, Optional, Tuple, Union
-
 class Attention(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -17,23 +15,24 @@ class Attention(nn.Module):
         self.value = nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
 
     def transpose_for_scores(self, x):
         x = x.view(x.size(0), -1, self.num_attention_heads, self.attention_head_size)
         return x.permute(0, 2, 1, 3)
 
     def forward(self, x):
-        q, k, v = self.query(x), self.key(x), self.value(x)
+        q, k, v = self.query(x), self.key(x), self.value(x) # b, l, d
 
-        q_layer = self.transpose_for_scores(q)
+        q_layer = self.transpose_for_scores(q)  # b, h, l, d/h
         k_layer = self.transpose_for_scores(k)
         v_layer = self.transpose_for_scores(v)
 
         attn_scores = torch.matmul(q_layer, k_layer.transpose(2, 3)) / math.sqrt(self.attention_head_size)
+        # b, h, l, l
 
         attn_probs = self.dropout(F.softmax(attn_scores, dim=-1))
         attn_outputs = torch.matmul(attn_probs, v_layer).permute(0, 2, 1, 3).contiguous()
+        # b, l, h, d/h
 
         return attn_outputs.view(x.size(0), -1, self.num_attention_heads * self.attention_head_size)
 

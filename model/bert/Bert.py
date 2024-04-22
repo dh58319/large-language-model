@@ -95,6 +95,7 @@ class MaskedLanguageModel(nn.Module):
 
 
 class BertNoNSP(BertPreTrainedModel):
+    _tied_weights_keys = ["mlm.mlm_linear.bias", "mlm.mlm_linear.weight"]
     def __init__(self, config):
         super().__init__(config)
         self.config = config
@@ -201,13 +202,10 @@ class BertSequenceClassification(BertPreTrainedModel):
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )
 
 
 if __name__ == "__main__":
-    #
     if __package__ is None:
         import sys
         from os import path
@@ -217,7 +215,7 @@ if __name__ == "__main__":
 
         from transformer.transformer import TransformerBlock
         from bert.Bert_config import BertConfig
-    #
+
     BERT_cfg = {
         # prajjwal1/bert-     [n_embd, n_layer]
         "prajjwal1/bert-tiny": [128, 2],
@@ -228,23 +226,24 @@ if __name__ == "__main__":
 
     config = BertConfig(hidden_size=128, num_hidden_layers=2,
                           num_attention_heads=2, attention_probs_dropout_prob=0.1)
-    #
-    # x = {"input_ids" : torch.randn(64, 512).to(torch.int64),
-    #      "attention_mask" : torch.randn(64, 512).to(torch.int64),
-    #      "token_type_ids": torch.randn(64, 512).to(torch.int64),
-    #      "labels" : torch.randn(64, 512).to(torch.int64)
-    #      }
-    # bert = BertNoNSP(config)
-    #
-    #
-    # print(output.shape)
 
-    model = BertModel(config, pooling=False)
-    param_size = 0
-    for param in model.parameters():
-        param_size += param.nelement() * param.element_size()
-    buffer_size = 0
-    for buffer in model.buffers():
-        buffer_size += buffer.nelement() * buffer.element_size()
-    size_all_mb = (param_size + buffer_size) / 1024 ** 2
-    print('model size: {:.3f}MB'.format(size_all_mb))
+    x = {"input_ids" : torch.randn(64, 512).to(torch.int64),
+         "attention_mask" : torch.randn(64, 512).to(torch.int64),
+         "token_type_ids": torch.randn(64, 512).to(torch.int64),
+         "labels" : torch.randn(64, 512).to(torch.int64)
+         }
+    bert = BertNoNSP(config)
+
+    output = bert(x)
+
+    print(output.shape)
+
+    # model = BertModel(config, pooling=False)
+    # param_size = 0
+    # for param in model.parameters():
+    #     param_size += param.nelement() * param.element_size()
+    # buffer_size = 0
+    # for buffer in model.buffers():
+    #     buffer_size += buffer.nelement() * buffer.element_size()
+    # size_all_mb = (param_size + buffer_size) / 1024 ** 2
+    # print('model size: {:.3f}MB'.format(size_all_mb))
