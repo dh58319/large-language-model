@@ -19,9 +19,7 @@ from transformers import (
 )
 from .utils import parse_argument, init_accelerator, make_log, load_dataset_utils, load_checkpoint_utils
 
-# from ..model.bert.Bert import BertNoNSP as scratch_model
-from ..model.channel_attention_bert import CABertNoNSP as scratch_model
-
+from ..model.bert.Bert import BertNoNSP as scratch_model
 from ..model.bert.Bert_config import BertConfig
 
 BERT_cfg = {
@@ -105,8 +103,9 @@ def main(model_config, args):
             tokenized_datasets = datasets.map(
                 tokenize_function,
                 batched=True,
+                cache_file_names={k: f'{args.out_dir}/cache/{k}_cache.arrow' for k in datasets.keys()},
                 num_proc=args.preprocess_num_worker,
-                remove_columns=[text_column_name],
+                remove_columns=column_names,
                 load_from_cache_file=not args.overwrite_cache,
                 desc="Running tokenizer on dataset line_by_line",
             )
